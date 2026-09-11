@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    /* Subtle grain-free gradient — night sky, not flat corporate dark mode */
+    background: radial-gradient(ellipse at top, #171d38 0%, #12172b 55%, #0d1120 100%);
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: theme("colors.solar.DEFAULT");
+    color: theme("colors.night.DEFAULT");
+  }
+
+  /* Visible keyboard focus everywhere — quality floor, not optional */
+  :focus-visible {
+    outline: 2px solid theme("colors.signal.DEFAULT");
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .mono-label {
+    @apply font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-muted;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
