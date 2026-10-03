@@ -1,4 +1,5 @@
 import { useConnectivity } from "../hooks/useConnectivity";
+import { useLang } from "../i18n/LanguageContext";
 
 /**
  * This is the signature element the design brief called for: not a generic
@@ -8,6 +9,7 @@ import { useConnectivity } from "../hooks/useConnectivity";
  */
 export function ConnectivityIndicator() {
   const status = useConnectivity();
+  const { t } = useLang();
   const isOnline = status === "online";
 
   return (
@@ -49,10 +51,10 @@ export function ConnectivityIndicator() {
             isOnline ? "text-signal" : "text-muted"
           }`}
         >
-          {isOnline ? "SIGNAL DETECTED" : "NO SIGNAL"}
+          {isOnline ? t.signalDetected : t.noSignal}
         </span>
         <span className="mt-0.5 text-[0.625rem] text-muted/80">
-          {isOnline ? "syncing available" : "tutor runs on this device"}
+          {isOnline ? t.syncingAvailable : t.runsOnDevice}
         </span>
       </div>
     </div>

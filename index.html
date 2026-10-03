@@ -4,17 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no" />
     <meta name="theme-color" content="#12172B" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <title>Offline STEM Tutor</title>
     <meta
       name="description"
       content="An AI STEM tutor that keeps working with no signal — built for learning pods with intermittent connectivity."
     />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <!-- No font CDN. Faces are self-hosted from /public/fonts and imported in
+         main.tsx, so the shell has zero third-party requests and looks
+         identical with the radio off. -->
   </head>
   <body class="bg-night text-paper font-body antialiased">
     <div id="root"></div>

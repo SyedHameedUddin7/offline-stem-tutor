@@ -6,11 +6,32 @@ import { VitePWA } from "vite-plugin-pwa";
 // The PWA plugin is what makes that literally true: it precaches the
 // app shell so the tutor loads from a cold start with no connection at all.
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Give the two inference runtimes stable, predictable chunk names.
+        //
+        // Without this they come out as index-<hash>.js, indistinguishable
+        // from the app entry, and the service worker config below has no way
+        // to say "precache the shell but not the 6MB model runtime". Naming
+        // them is what makes the caching policy expressible.
+        manualChunks(id) {
+          if (id.includes("@mlc-ai/web-llm")) return "webllm";
+          if (id.includes("@huggingface/transformers") || id.includes("onnxruntime")) {
+            return "transformers";
+          }
+        },
+      },
+    },
+    // The shell is small; the deliberately-excluded runtimes are not. Warning
+    // on them every build would just train us to ignore the warning.
+    chunkSizeWarningLimit: 1024,
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg"],
+      includeAssets: ["favicon.png"],
       manifest: {
         name: "Offline STEM Tutor",
         short_name: "STEM Tutor",
@@ -20,49 +41,64 @@ export default defineConfig({
         background_color: "#12172B",
         display: "standalone",
         icons: [
+          { src: "icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icon-512.png", sizes: "512x512", type: "image/png" },
+          // Maskable so Android can crop to a circle or squircle without
+          // slicing the glyph. Without one, the launcher icon gets a white
+          // box around it, which looks broken on exactly the devices this
+          // app is for.
           {
-            src: "icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "icon-512.png",
+            src: "icon-maskable-512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "maskable",
           },
         ],
       },
       workbox: {
-        // Model weights are large; raise the default 2MB precache limit so
-        // the shell + weights can actually be cached for true offline boot.
-        maximumFileSizeToCacheInBytes: 200 * 1024 * 1024,
-        globPatterns: ["**/*.{js,css,html,svg,png,ico}"],
+        // Precache the app shell only.
+        //
+        // Two things are deliberately NOT handled here:
+        //
+        //  - Model weights. WebLLM maintains its own Cache API store keyed by
+        //    model id, with its own integrity and progress handling. A
+        //    duplicate CacheFirst route would quietly store a second copy of
+        //    roughly a gigabyte on a phone that does not have a spare
+        //    gigabyte.
+        //
+        //  - Lesson videos. Those are downloaded on purpose, by the student or
+        //    teacher, with a visible byte cost (see LessonsPane). Caching them
+        //    as a side effect of playback is the opposite of what a metered
+        //    connection deserves.
+        //
+        // Both of those are the app's business, not the service worker's. The
+        // service worker's one job is making sure the shell boots with the
+        // radio off.
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+
+        // The inference runtime is lazy-loaded and must not be part of the
+        // first-visit cost. A student who only watches a downloaded video
+        // should never pay for the ONNX stack.
+        globIgnores: ["**/transformers-*.js", "**/webllm-*.js", "**/ort-wasm*"],
+
         runtimeCaching: [
           {
-            // WebLLM fetches model weights from a CDN on first load.
-            // CacheFirst means: once downloaded, never touch the network again.
-            urlPattern: /^https:\/\/.*\.(wasm|bin|json)$/,
+            // ...but once something HAS pulled the runtime in, keep it.
+            //
+            // This is not the same call as weights and videos. Those are
+            // content, with a size a student should decide about. This is
+            // infrastructure: by the time it is fetched, the student has
+            // already chosen to use the feature, and failing to cache it
+            // would mean re-downloading 21MB the next time they open the app
+            // — the exact behaviour this project exists to argue against.
+            urlPattern: ({ url }: { url: URL }) =>
+              url.origin === self.location.origin &&
+              (url.pathname.endsWith(".wasm") ||
+                /\/(transformers|webllm)-[\w-]+\.js$/.test(url.pathname)),
             handler: "CacheFirst",
             options: {
-              cacheName: "model-weights-cache",
-              expiration: {
-                maxEntries: 20,
-                maxAgeSeconds: 60 * 60 * 24 * 90,
-              },
-              cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            // Lesson videos: same idea, separate cache so we can inspect/clear
-            // it independently and show accurate "available offline" state.
-            urlPattern: /\/videos\/.*\.(mp4|webm)$/,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "lesson-video-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 180,
-              },
+              cacheName: "inference-runtime-v1",
+              expiration: { maxEntries: 12 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

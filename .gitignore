@@ -1,5 +1,48 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
 dist-ssr
-*.local
+*.tsbuildinfo
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Downloaded model weights.
+# Nothing here should ever be committed: the LLM (~1.6GB) and the embedder
+# (~128MB) are fetched from their CDNs at runtime and cached in the browser's
+# Cache API. If a weights file ever appears in the working tree, something
+# has gone wrong with the lazy-loading architecture.
+*.gguf
+*.safetensors
+*.onnx
+*.bin
+models/
+model-cache/
+public/models/
+
+# Local lesson media (placeholders are documented in public/videos/README.txt)
+public/videos/*.mp4
+public/videos/*.webm
+
+# Test / coverage artefacts
+coverage
+*.lcov
+
+# Local database dumps
+*.sqlite
+*.sqlite3
+pod-sync-*.json
+
+# Editor and OS
 .DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.swp
+*.local

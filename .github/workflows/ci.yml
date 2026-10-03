@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same branch rather than paying for both.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what the
+      # lockfile says and fails if package.json and the lockfile disagree,
+      # which is the whole point of running this in CI.
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      # Runs `tsc -b && vite build`. A failing build fails the job — there is
+      # deliberately no `continue-on-error` anywhere in this file.
+      - name: Build
+        run: npm run build
+
+      # Guard the central architectural claim: the inference runtimes must
+      # stay out of the precache, so a first visit downloads the app shell
+      # and nothing else. If someone static-imports transformers.js or
+      # WebLLM, this fails instead of silently shipping a 28MB first load.
+      - name: Assert first-load payload stays small
+        run: node scripts/check-bundle-budget.mjs
