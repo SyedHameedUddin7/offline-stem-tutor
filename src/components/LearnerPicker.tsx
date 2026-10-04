@@ -5,6 +5,7 @@ import { LEARNER_COLORS } from "../lib/learners";
 import { useLearner } from "../learner/LearnerContext";
 import { useLang } from "../i18n/LanguageContext";
 import { StorageWarning } from "./StorageWarning";
+import { InstallPrompt } from "./InstallPrompt";
 import type { Learner } from "../types";
 
 const accentRing: Record<string, string> = {
@@ -189,7 +190,8 @@ export function LearnerPicker() {
         </form>
       )}
 
-      <div className="mt-5">
+      <div className="mt-5 space-y-2">
+        <InstallPrompt />
         <StorageWarning />
       </div>
 

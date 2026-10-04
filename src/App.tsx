@@ -16,6 +16,7 @@ import { Landing } from "./components/Landing";
 import { LowBandwidthNotice } from "./components/LowBandwidthNotice";
 import { OfflineReadyBadge } from "./components/OfflineReadyBadge";
 import { StorageWarning } from "./components/StorageWarning";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { LearnerBadge } from "./components/LearnerBadge";
 import { FacilitatorGate } from "./components/FacilitatorGate";
 import { firstChapterOf } from "./data/subjects";
@@ -136,6 +137,7 @@ export default function App() {
             activeChapterId={chapterId}
             onSelect={setChapterId}
           />
+          <InstallPrompt />
           <StorageWarning />
           <LowBandwidthNotice />
           <ModelLoader />

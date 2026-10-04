@@ -27,6 +27,17 @@ export const STRINGS = {
     footerHint:
       "try it: turn on airplane mode, then keep asking questions and playing downloaded videos",
 
+    // Install
+    installTitle: "install to keep your work",
+    installBody:
+      "Installed, this app gets its own storage that the browser will not clear, and it opens without a connection. On a shared pod phone this is the supported way to run it.",
+    installIosBody:
+      "Tap Share, then \"Add to Home Screen\". Installed, the app gets storage iOS will not clear between sessions and opens without a connection.",
+    installAction: "Install",
+    installInAppTitle: "open this in your browser",
+    installInAppBody:
+      "You are viewing this inside another app's built-in browser, which usually erases saved data when that app closes — learners and downloads will not survive. Tap the menu and choose \"Open in Safari\" or \"Open in Chrome\", then install from there.",
+
     // Storage persistence
     storageAtRisk: "this browser may delete your work",
     storageAtRiskBody:
@@ -311,6 +322,16 @@ export const STRINGS = {
     tabTeacher: "Révision enseignant",
     footerHint:
       "essayez : activez le mode avion, puis continuez à poser des questions et à lire les vidéos téléchargées",
+
+    installTitle: "installe pour conserver ton travail",
+    installBody:
+      "Une fois installée, l'application dispose de son propre stockage que le navigateur n'effacera pas, et elle s'ouvre sans connexion. Sur un téléphone de pod partagé, c'est le mode d'utilisation prévu.",
+    installIosBody:
+      "Touche Partager, puis « Sur l'écran d'accueil ». Installée, l'application conserve ses données entre les sessions et s'ouvre sans connexion.",
+    installAction: "Installer",
+    installInAppTitle: "ouvre ceci dans ton navigateur",
+    installInAppBody:
+      "Tu consultes cette page dans le navigateur intégré d'une autre application, qui efface généralement les données enregistrées à sa fermeture — les apprenants et les téléchargements ne survivront pas. Ouvre le menu et choisis « Ouvrir dans Safari » ou « Ouvrir dans Chrome », puis installe depuis là.",
 
     storageAtRisk: "ce navigateur peut supprimer ton travail",
     storageAtRiskBody:
