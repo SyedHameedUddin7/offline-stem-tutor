@@ -324,6 +324,8 @@ So: this is a boundary against a curious student, which is the threat that actua
 
 ## Deployment
 
+**Live:** https://zealous-mushroom-0497e111e.6.azurestaticapps.net
+
 Hosted on **Azure Static Web Apps** — chosen because this is a static PWA and the interesting engineering happens in the browser, not the cloud. There is no backend, no database and no API, because none is required: a server would undermine the point.
 
 ```
@@ -342,6 +344,8 @@ Two workflows in `.github/workflows/`:
 `scripts/check-bundle-budget.mjs` fails the build if the first-visit payload exceeds 1200 KB, or if an inference runtime appears in the precache manifest.
 
 This guards the project's central claim, and it guards it against a failure that is silent rather than loud: someone adds a plain `import` of transformers.js or WebLLM, the bundler folds megabytes into the entry chunk, and the first-visit download grows from under a megabyte to tens of them. Nothing errors. The tests still pass. Only a first-time visitor on a 2G connection notices.
+
+`public/staticwebapp.config.json` — in `public/` so Vite copies it into `dist`, because with `skip_app_build` the config has to live inside the uploaded folder to be applied.
 
 ### `staticwebapp.config.json`
 
