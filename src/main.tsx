@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { LearnerProvider } from "./learner/LearnerContext";
+import { initServiceWorker } from "./lib/serviceWorker";
 // Self-hosted, before anything else. Fonts were coming from Google's CDN,
 // which meant a cold offline boot rendered the whole app in fallback faces —
 // a visible wobble in the one claim this project is making. 360KB of latin +
@@ -20,3 +21,6 @@ createRoot(document.getElementById("root")!).render(
     </LanguageProvider>
   </StrictMode>
 );
+
+// Registered after render so the first paint is never waiting on it.
+initServiceWorker();

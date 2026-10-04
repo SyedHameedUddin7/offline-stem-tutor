@@ -31,6 +31,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // Registered by hand in src/lib/serviceWorker.ts instead of via an
+      // injected script, so the app can observe when precaching finishes
+      // and actually tell the user they are ready to go offline. Without
+      // that signal, "is it safe to disconnect yet?" is unanswerable.
+      injectRegister: null,
       includeAssets: ["favicon.png"],
       manifest: {
         name: "Offline STEM Tutor",

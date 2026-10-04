@@ -27,6 +27,16 @@ export const STRINGS = {
     footerHint:
       "try it: turn on airplane mode, then keep asking questions and playing downloaded videos",
 
+    // Service worker / offline readiness
+    swCaching: "preparing offline",
+    swCachingHint:
+      "Downloading the app so it can start without a connection. Stay online until this says ready.",
+    swOfflineReady: "works offline",
+    swOfflineReadyHint:
+      "The app is cached on this device. You can disconnect and it will still open.",
+    swUnavailable: "offline unavailable",
+    swUpdate: "update ready — tap to reload",
+
     // Low bandwidth
     lowBandwidth: "Low-bandwidth mode",
     lowBandwidthBlurb:
@@ -295,6 +305,15 @@ export const STRINGS = {
     tabTeacher: "Révision enseignant",
     footerHint:
       "essayez : activez le mode avion, puis continuez à poser des questions et à lire les vidéos téléchargées",
+
+    swCaching: "préparation hors ligne",
+    swCachingHint:
+      "Téléchargement de l'application pour qu'elle démarre sans connexion. Reste en ligne jusqu'à « fonctionne hors ligne ».",
+    swOfflineReady: "fonctionne hors ligne",
+    swOfflineReadyHint:
+      "L'application est enregistrée sur cet appareil. Tu peux te déconnecter, elle s'ouvrira quand même.",
+    swUnavailable: "hors ligne indisponible",
+    swUpdate: "mise à jour prête — toucher pour recharger",
 
     lowBandwidth: "Mode faible bande passante",
     lowBandwidthBlurb:

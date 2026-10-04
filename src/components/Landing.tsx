@@ -1,5 +1,6 @@
 import { LanguageToggle } from "./LanguageToggle";
 import { LowBandwidthNotice } from "./LowBandwidthNotice";
+import { OfflineReadyBadge } from "./OfflineReadyBadge";
 import { useLang } from "../i18n/LanguageContext";
 
 /**
@@ -28,7 +29,8 @@ export function Landing({ onStart }: { onStart: () => void }) {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-4 py-6 sm:px-6">
-      <div className="mb-8 flex justify-end">
+      <div className="mb-8 flex items-center justify-end gap-2">
+        <OfflineReadyBadge />
         <LanguageToggle />
       </div>
 

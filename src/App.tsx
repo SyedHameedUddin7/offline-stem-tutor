@@ -14,6 +14,7 @@ import { useLearner } from "./learner/LearnerContext";
 import { LearnerPicker } from "./components/LearnerPicker";
 import { Landing } from "./components/Landing";
 import { LowBandwidthNotice } from "./components/LowBandwidthNotice";
+import { OfflineReadyBadge } from "./components/OfflineReadyBadge";
 import { LearnerBadge } from "./components/LearnerBadge";
 import { FacilitatorGate } from "./components/FacilitatorGate";
 import { firstChapterOf } from "./data/subjects";
@@ -118,6 +119,7 @@ export default function App() {
               {t.tabTeacher}
             </button>
           </nav>
+          <OfflineReadyBadge />
           <LearnerBadge />
           <LanguageToggle />
           <EngineStatus />
