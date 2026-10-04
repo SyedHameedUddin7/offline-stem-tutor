@@ -4,6 +4,7 @@ import { db } from "../lib/db";
 import { LEARNER_COLORS } from "../lib/learners";
 import { useLearner } from "../learner/LearnerContext";
 import { useLang } from "../i18n/LanguageContext";
+import { StorageWarning } from "./StorageWarning";
 import type { Learner } from "../types";
 
 const accentRing: Record<string, string> = {
@@ -188,7 +189,11 @@ export function LearnerPicker() {
         </form>
       )}
 
-      <p className="mt-6 text-xs leading-relaxed text-muted/80">{t.learnerPrivacyNote}</p>
+      <div className="mt-5">
+        <StorageWarning />
+      </div>
+
+      <p className="mt-4 text-xs leading-relaxed text-muted/80">{t.learnerPrivacyNote}</p>
     </div>
   );
 }

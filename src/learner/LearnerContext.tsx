@@ -7,6 +7,7 @@ import {
   setActiveLearnerId,
   touchLearner,
 } from "../lib/learners";
+import { ensurePersisted, refreshPersistenceState } from "../lib/storagePersistence";
 import type { Learner } from "../types";
 
 interface LearnerValue {
@@ -32,6 +33,7 @@ export function LearnerProvider({ children }: { children: ReactNode }) {
   // "Who's learning today?" for 50ms before their own name appears is the
   // kind of wobble that makes an app feel untrustworthy.
   useEffect(() => {
+    refreshPersistenceState().catch(() => undefined);
     resolveActiveLearner()
       .then(setLearner)
       .catch((err) => console.error("Could not resolve the active learner", err))
@@ -39,12 +41,16 @@ export function LearnerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const select = useCallback(async (next: Learner) => {
+    // A real user gesture, and the point at which data worth keeping exists.
+    // Browsers weigh both when deciding whether to grant persistence.
+    void ensurePersisted();
     setActiveLearnerId(next.id);
     await touchLearner(next.id);
     setLearner({ ...next, lastActiveAt: Date.now() });
   }, []);
 
   const create = useCallback(async (name: string) => {
+    void ensurePersisted();
     const created = await createLearnerRow(name);
     setActiveLearnerId(created.id);
     setLearner(created);

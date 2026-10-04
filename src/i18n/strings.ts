@@ -27,6 +27,12 @@ export const STRINGS = {
     footerHint:
       "try it: turn on airplane mode, then keep asking questions and playing downloaded videos",
 
+    // Storage persistence
+    storageAtRisk: "this browser may delete your work",
+    storageAtRiskBody:
+      "The browser has not promised to keep this app's data. Learners, questions and downloaded models can be cleared when you close the browser or when storage runs low. Installing the app makes it far more likely to be kept.",
+    storageAtRiskAction: "Ask the browser to keep it",
+
     // Service worker / offline readiness
     swCaching: "preparing offline",
     swCachingHint:
@@ -305,6 +311,11 @@ export const STRINGS = {
     tabTeacher: "Révision enseignant",
     footerHint:
       "essayez : activez le mode avion, puis continuez à poser des questions et à lire les vidéos téléchargées",
+
+    storageAtRisk: "ce navigateur peut supprimer ton travail",
+    storageAtRiskBody:
+      "Le navigateur n'a pas promis de conserver les données de cette application. Les apprenants, les questions et les modèles téléchargés peuvent être effacés à la fermeture du navigateur ou si l'espace manque. Installer l'application augmente nettement les chances qu'ils soient conservés.",
+    storageAtRiskAction: "Demander au navigateur de conserver",
 
     swCaching: "préparation hors ligne",
     swCachingHint:

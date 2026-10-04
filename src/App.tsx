@@ -15,6 +15,7 @@ import { LearnerPicker } from "./components/LearnerPicker";
 import { Landing } from "./components/Landing";
 import { LowBandwidthNotice } from "./components/LowBandwidthNotice";
 import { OfflineReadyBadge } from "./components/OfflineReadyBadge";
+import { StorageWarning } from "./components/StorageWarning";
 import { LearnerBadge } from "./components/LearnerBadge";
 import { FacilitatorGate } from "./components/FacilitatorGate";
 import { firstChapterOf } from "./data/subjects";
@@ -135,6 +136,7 @@ export default function App() {
             activeChapterId={chapterId}
             onSelect={setChapterId}
           />
+          <StorageWarning />
           <LowBandwidthNotice />
           <ModelLoader />
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-[2fr_1fr]">
