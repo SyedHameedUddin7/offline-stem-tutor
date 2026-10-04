@@ -38,8 +38,13 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
-          app_location: "/"
-          output_location: "dist"
+          # With skip_app_build, app_location is the folder that gets
+          # uploaded — not the folder to build from. Pointing it at "/" made
+          # the action upload the whole workspace including node_modules,
+          # which breached the 250MB Free-tier limit even though dist is
+          # 28MB. output_location must be empty for the same reason.
+          app_location: "dist"
+          output_location: ""
           skip_app_build: true
 
   close_pull_request:
