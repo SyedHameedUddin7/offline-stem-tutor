@@ -25,7 +25,7 @@ Everything larger is opt-in, downloaded once, and never automatic.
 | Level | What you get | Download | Needs |
 |---|---|---|---|
 | **1. Core tutor** | Curriculum (4 subjects × 7 chapters), deterministic solver, verified answer bank, learner profiles, chat history, facilitator tools, English + French | **867 KB** — included | any modern browser |
-| **2. Local retrieval** | Semantic search over the answer bank, in either language | **~128 MB** once | plain WASM — no GPU |
+| **2. Local retrieval** | Semantic search over the answer bank, in either language | **~150 MB** once (128 MB model + 21 MB WASM runtime) | plain WASM — no GPU |
 | **3. On-device AI** | A language model answering Maths, Physics and Biology | **~1.6 GB** once | WebGPU |
 
 **The 1.6 GB model is optional.** Nothing asks for it on first load, nothing starts it in the background, and the app is fully usable without it. It is offered behind a button that states the size — and the time, on a slow connection — before you tap. A device without WebGPU is told so plainly and keeps levels 1 and 2.
@@ -40,14 +40,14 @@ Four tiers answer questions. Only one needs a language model, and only one is al
 |---|---|---|---|---|
 | 1 | **Deterministic solver** | nothing | `high` | Number series — exactly decidable |
 | 2 | **On-device LLM** | WebGPU + one download | `medium` / `low` | Maths, Physics, Biology |
-| 3 | **Verified answer bank** | ~128MB embedder, plain WASM | `medium` | Mental Ability |
+| 3 | **Verified answer bank** | ~150MB embedder, plain WASM | `medium` | Mental Ability |
 | 4 | **Honest refusal** | nothing | `low` | Flagged for a facilitator |
 
 Two things worth noting:
 
 **The top rung is not the LLM.** For a number series, arithmetic beats a 1.5B model — and it is the only tier that verifies its own output, so it is the only one allowed to say `high`.
 
-**Tier 3 runs where tier 2 cannot.** On a shared low-end Android, tier 3 is the real tutor. A design that stopped at "run an LLM on-device" would hand that student a blank screen.
+**Tier 3 runs where tier 2 cannot.** The embedder is ~150MB on plain WASM; the language model is ~1.6GB and needs WebGPU. On a shared low-end Android, tier 3 is the real tutor. A design that stopped at "run an LLM on-device" would hand that student a blank screen.
 
 ## Why Mental Ability is grounded and the STEM subjects are not
 
@@ -92,7 +92,7 @@ A facilitator corrects a flagged answer. The correction is embedded on the spot 
 
 ### What does *not* work offline — stated plainly
 
-- **First use of either model needs a connection.** ~1.6GB for the LLM, ~128MB for the embedder, each once. Both show the cost before the tap. Until the embedder is cached, Mental Ability says so explicitly instead of pretending nothing matched.
+- **First use of either model needs a connection.** ~1.6GB for the LLM, ~150MB for the embedder (128MB of weights plus a 21MB WASM runtime), each once. Both show the cost before the tap. Until the embedder is cached, Mental Ability says so explicitly instead of pretending nothing matched.
 - **Cross-device sync needs a courier, not a connection.** Flags and verified corrections move between phones as an exported file — no server, no signalling, no network. A networked transport (local Wi-Fi or a cloud endpoint) is not built; both would be callers of the same merge.
 - **Answer-bank exemplars are authored in English.** Cross-lingual retrieval finds the right exemplar for a French question, and with the LLM present it is restated in French. Without one, a French student gets the right method in English.
 
@@ -169,11 +169,24 @@ npm run build && npx vite preview --port 4317
 
 After any rebuild: DevTools → Application → Service Workers → **Unregister**, then reload. `registerType: "autoUpdate"` still needs a reload cycle, and a stale worker will serve you old JavaScript.
 
-### Phase 1 — no downloads required
+**Network state matters and is easy to misread.** You stay online for Phases 1–3, toggle the network off once at Phase 4, and leave it off through Phase 6:
+
+```
+NETWORK ON   Phase 1  nothing to download          0
+             Phase 2  embedder downloads        ~150 MB
+             Phase 3  LLM, optional        880 MB / 1.6 GB
+NETWORK OFF  Phase 4  the offline claim
+             Phase 5  facilitator workflow
+             Phase 6  sync between devices
+```
+
+Phases 2 and 3 are independent: you can do 2 and skip 3 entirely, and everything from Phase 4 onward still works. The solver is arithmetic and the answer bank only needs the embedder.
+
+### Phase 1 — network ON · nothing to download
 
 | # | Do | Expect |
 |---|---|---|
-| 1 | Open the app | "Who's learning today?" — not the tutor |
+| 1 | Open the app, **wait for the header badge to read `✓ works offline`** | Landing screen, then the learner picker. The badge is the only reliable signal that the shell has finished caching |
 | 2 | Add a learner, e.g. `Awa` | Header shows `Awa · switch` |
 | 3 | Mental Ability → Number Series → ask `2,4,6,8,?` | **Answer 10**, labelled `Verified — checked against your question`. No model, no download |
 | 4 | Ask `120, 99, 80, 63, 48, ?` | 35, via constant second difference |
@@ -184,14 +197,14 @@ After any rebuild: DevTools → Application → Service Workers → **Unregister
 
 Step 8 is the shared-device privacy property. If Ibrahim sees Awa's questions, stop and tell me.
 
-### Phase 2 — the search model (~128MB, once)
+### Phase 2 — network ON · the search model (~150MB, once)
 
 | # | Do | Expect |
 |---|---|---|
 | 9 | Ask a non-series aptitude question, e.g. `Doctor : Hospital :: Teacher : ?` | Header chip goes `answer bank ready · wasm`; answer labelled `From a verified example` |
 | 10 | Ask `Odd one out: 3, 5, 11, 14, 17` | Grounded answer, 14 |
 
-### Phase 3 — the language model (~1.6GB, once)
+### Phase 3 — network ON · the language model, OPTIONAL (880MB or 1.6GB, once)
 
 | # | Do | Expect |
 |---|---|---|
@@ -199,7 +212,7 @@ Step 8 is the shared-device privacy property. If Ibrahim sees Awa's questions, s
 | 12 | Ask `Solve for x: 3x + 7 = 22` | Streams token by token; labelled `Used the chapter material · not checked by a person` |
 | 13 | Ask `Why does a heavier object not fall faster?` in Physics → Gravitation | Should reflect the misconception note, not the common wrong answer |
 
-### Phase 4 — the actual claim
+### Phase 4 — network OFF · the actual claim
 
 These are two different failure modes and must be tested separately.
 
@@ -213,7 +226,7 @@ These are two different failure modes and must be tested separately.
 
 Step 16 is the one the whole project exists for.
 
-### Phase 5 — facilitator
+### Phase 5 — still offline · facilitator
 
 | # | Do | Expect |
 |---|---|---|
@@ -226,7 +239,7 @@ Step 16 is the one the whole project exists for.
 
 Step 24 is the flywheel.
 
-### Phase 6 — sync between devices
+### Phase 6 — still offline · sync between devices
 
 Use **two browser profiles**, not two tabs — same-origin tabs share one IndexedDB, so two tabs prove nothing.
 
