@@ -29,6 +29,7 @@ jobs:
       # `skip_app_build` below tells Azure to upload it as-is.
       - run: npx tsc --noEmit
       - run: npm test
+      - run: npm run eval
       - run: npm run build
       - run: node scripts/check-bundle-budget.mjs
 

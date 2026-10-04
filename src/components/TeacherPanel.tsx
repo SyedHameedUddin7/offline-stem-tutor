@@ -6,14 +6,20 @@ import { useLang } from "../i18n/LanguageContext";
 import { promoteCorrectionToBank } from "../lib/retrieval";
 import { logBankItem, logFlagResolved } from "../lib/sync";
 import { SyncPanel } from "./SyncPanel";
+import { safeParseAll } from "../lib/safeRead";
+import { flaggedItemSchema } from "../schemas";
 import { FacilitatorDashboard } from "./FacilitatorDashboard";
 import { OfflineReadiness } from "./OfflineReadiness";
+import { Diagnostics } from "./Diagnostics";
 import type { Learner } from "../types";
 import type { FlaggedItem } from "../types";
 
 export function TeacherPanel() {
   const items = useLiveQuery(
-    () => db.flaggedItems.orderBy("timestamp").reverse().toArray(),
+    async () => {
+      const rows = await db.flaggedItems.orderBy("timestamp").reverse().toArray();
+      return safeParseAll(flaggedItemSchema, rows, "flagged item").valid as FlaggedItem[];
+    },
     [],
     [] as FlaggedItem[]
   );
@@ -84,6 +90,8 @@ export function TeacherPanel() {
       <OfflineReadiness />
 
       <SyncPanel />
+
+      <Diagnostics />
 
       {pending.length === 0 && (
         <p className="rounded-card border border-white/5 bg-night-surface p-4 text-sm text-muted">

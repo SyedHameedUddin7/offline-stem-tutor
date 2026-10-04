@@ -125,17 +125,44 @@ French questions retrieving English notes   8/8
 
 ---
 
-## Tests
+## Tests and evaluation
 
 ```bash
-npm test     # 150 tests, ~990ms
+npm test     # 220 tests, ~1.0s
+npm run eval # evaluation dataset v1
 ```
 
-They cover the parts the README claims are reliable: the solver (including the `2,4,6,8` regression, both languages, and the refusals), the retrieval bands and domain gate, embedding-cache invalidation across a model swap, the facilitator flywheel end to end, learner isolation on a shared device, the facilitator PIN including lockout escalation and that the PIN is never stored in any field, the sync merge's idempotency, convergence and conflict rules plus the flywheel crossing devices, the v5 migration that adopts pre-profile conversations rather than deleting them, the Dexie schema regression that once blanked the teacher view, and curriculum integrity including full French coverage.
+They cover the parts this README makes claims about: the solver (including the `2,4,6,8` regression, both languages, and the refusals), retrieval bands and the domain gate, embedding-cache invalidation across a model swap, the facilitator flywheel end to end, learner isolation, the facilitator PIN including lockout escalation, the sync merge's idempotency and convergence, the v5 migration that adopts pre-profile conversations, the Dexie schema regression that once blanked the teacher view, schema validation and corrupt-record recovery, and the arithmetic/dimension verifiers.
 
-Retrieval tests use a deterministic stand-in embedder. The real model's behaviour is measured separately against the real corpus — those are the numbers above.
+Retrieval tests use a deterministic stand-in embedder so the suite runs in under a second with no model download. The real model's behaviour is measured separately against the real corpus — those are the threshold numbers above.
 
----
+### Evaluation
+
+`src/eval/dataset.ts` holds **45 versioned cases** scoped to what this app actually teaches. There is no chemistry in it because there is no chemistry curriculum here; padding the set with unsupported domains would inflate the count and measure nothing.
+
+Every case is checkable **without a language model**, which is what makes the numbers reproducible in CI on a machine with no GPU:
+
+```
+Evaluation v1
+Cases: 45   evaluated: 45   skipped: 0
+
+Overall verified accuracy ...... 100.0%  (45/45)
+Solver agreement ............... 100.0%
+Correct refusal rate ........... 100.0%
+Contradiction detection ........ 100.0%
+Unit correctness ............... 100.0%
+
+  aptitude             100.0%  (6/6)
+  arithmetic-check     100.0%  (5/5)
+  dimension-check      100.0%  (6/6)
+  number-series        100.0%  (16/16)
+  out-of-domain        100.0%  (8/8)
+  substitution-check   100.0%  (4/4)
+```
+
+**What these numbers do and do not mean.** They measure the deterministic layers — the solver, the refusal gate, the arithmetic and dimensional verifiers — against a fixed suite. They are *not* a measure of how often the language model is right; nothing here evaluates the LLM's output quality, and this project makes no claim about that. `npm run eval` skips the 14 retrieval cases because they need the 128MB embedder; the Vitest run covers all 45 using the stand-in embedder, which measures the retrieval *policy* (thresholds, domain gate, chapter scoping) rather than the real model's semantics.
+
+The suite found a real bug on its first run: the arithmetic checker read `2 x 36 = 36` out of the middle of `0.5 x 2 x 36 = 36` and flagged a correct answer as wrong. Chains are now skipped rather than mis-evaluated, with a regression test.
 
 ## Stack
 
@@ -299,6 +326,28 @@ Form choices worth noting, since they were measured rather than picked:
 - Exactly one hero figure, and it is the actionable one: answers awaiting review.
 - The panel says **"this device only"** in its header. A dashboard that silently reports a fraction of the pod is worse than one that reports nothing.
 
+## AI reliability: checking the model's work
+
+A language model produces arithmetic that reads correctly and is wrong, and prompting does not reliably fix it. Every claim of the form `a OP b = c`, though, is checkable in microseconds. So generated answers run through deterministic checks before they reach a student:
+
+| Check | Applies to | Catches |
+|---|---|---|
+| **Arithmetic** | every subject | `3 x 4 = 14` — a claim contradicted by its own operands |
+| **Dimensional analysis** | physics | *"the acceleration is 4 N"* — right number, impossible unit |
+| **Substitution** | linear equations | a stated `x` that does not satisfy the original equation |
+
+A failed check drops confidence to `low`, **auto-flags the answer for a facilitator**, and labels it `⚠ A check failed` rather than letting it sit there looking as confident as a sound answer.
+
+Three deliberate limits:
+
+**No second model call.** A model that got the arithmetic wrong is not the right judge of whether the arithmetic is wrong, and a second pass would cost seconds on a phone.
+
+**Passing is not "correct".** The strongest thing a model answer can earn is `Arithmetic and units checked · reasoning not verified`. The checks confirm the working is internally sound, not that it reached the right place. Only the solver claims `Verified`, because only the solver derived the result itself.
+
+**Unverifiable is its own state.** A conceptual answer with no numbers is reported as unverifiable, never as passing — otherwise the badge would be meaningless on exactly the answers where a reader most wants to know.
+
+Dimensional analysis tracks mass/length/time exponents only. That covers every quantity in the Physics chapters here and stops well short of a general SI implementation, which would be a lot of code for no extra coverage.
+
 ## Pod sync without a network
 
 Two phones in a pod may both have been offline for a week. Both have moved on. There is no "current state" for them to agree on — only two sets of things that happened. So the unit of transfer is an **append-only log of facts**, not a snapshot of tables.
@@ -335,6 +384,31 @@ The lockout closes the UI path completely — thousands of guesses through a for
 
 So: this is a boundary against a curious student, which is the threat that actually exists in a pod. It is not real security, and anyone holding the device could eventually get past it. Anything genuinely sensitive would need a server-side check — and working with no server is this project's architecture, not an oversight. There is deliberately no in-app PIN reset, because with no server a reset reachable from inside the app is just a second unlocked door.
 
+## Runtime validation
+
+Zod schemas sit at the boundaries where data this build did not produce enters it — a sync bundle from another device, IndexedDB rows written by an older version, localStorage a user could have edited. Not on every function call: a type is a compile-time claim about data this code produced, and validating that would cost something and catch nothing.
+
+The rule `lib/safeRead.ts` enforces: **one bad row must not take down a query.** A corrupt message costs that message, not the conversation. Failed rows are quarantined and counted, never deleted — "I could not read this" is recoverable, "I deleted your work because I could not read it" is not, and a later version with a wider schema may read it fine.
+
+## Device diagnostics
+
+The facilitator panel carries a copyable diagnostics block: browser, platform, install state, service worker state, storage persistence, WebGPU/WASM/IndexedDB/Cache availability, connection type, free storage, model states, record counts and the build version. Built for the real case — a facilitator reporting that a phone "doesn't work" from somewhere with no devtools. It contains no learner names, questions or answers.
+
+## Low-end Android
+
+**Not tested on hardware.** No low-end Android device was available, and nothing in this README should be read as a hardware test result. What exists is a design that degrades explicitly and a procedure for someone who has the device:
+
+1. Chrome → DevTools → **Device Mode**, throttle to *Slow 4G* and *6x CPU slowdown*.
+2. Load the site, wait for `✓ works offline`. Note first-paint time.
+3. Confirm the header reads `cpu` rather than `webgpu` when WebGPU is unavailable.
+4. Ask a Number Series question — the solver should answer instantly with no download.
+5. Ask an aptitude question — ~150MB embedder, on WASM. Time it.
+6. Confirm the LLM banner states its size and **never** starts on its own.
+7. Open facilitator → Diagnostics, copy the block, compare against a desktop run.
+8. Go offline, reload, confirm the app boots and the solver still answers.
+
+The capability ladder is explicit: **WebGPU → WASM → deterministic solver and retrieval.** Steps 4 and 8 are the ones that matter, because they are the path a device with no WebGPU and no spare storage actually takes.
+
 ## Deployment
 
 **Live:** https://zealous-mushroom-0497e111e.6.azurestaticapps.net
@@ -367,6 +441,10 @@ This guards the project's central claim, and it guards it against a failure that
 - Explicit MIME types for `.wasm` and `.webmanifest`.
 
 One header deliberately **not** set: `Cross-Origin-Embedder-Policy`. It would enable `SharedArrayBuffer` and multi-threaded WASM for the embedder, but it can block the cross-origin model fetches from the Hugging Face CDN, and `credentialless` is unsupported in Safari. Shipping a header I could not verify against the live site, where the downside is "the model never downloads", was not a trade worth making. Worth testing later.
+
+## Future improvements
+
+Deliberately **not** built in this milestone, recorded so the scope line is visible rather than implied: local Wi-Fi sync and device pairing, signed sync bundles, a conflict-visualisation UI, a teacher knowledge-bank management screen, an exercise/assessment system, adaptive difficulty, and mastery estimation. Each is a product feature, not a reliability gap.
 
 ## Known gaps
 

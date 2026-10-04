@@ -124,6 +124,8 @@ export const STRINGS = {
     provVerified: "Verified — checked against your question",
     provTeacherVerified: "Verified by a teacher",
     provFromExample: "From a verified example",
+    provChecksPassed: "Arithmetic and units checked · reasoning not verified",
+    provChecksFailed: "⚠ A check failed — sent to your teacher",
     provGroundedUnchecked: "Used the chapter material · not checked by a person",
     provUnchecked: "AI answer · not checked by a person",
     provNoAnswer: "No answer — sent to your teacher",
@@ -232,6 +234,13 @@ export const STRINGS = {
       `The verified answer bank isn't searchable on this device yet (${indexed} of ${total} items indexed), so I won't guess. ` +
       `The search model downloads once — connect briefly and ask again, and it will work offline from then on. ` +
       `Number-series questions already work with no model at all.`,
+
+    // Diagnostics
+    diagTitle: "Device diagnostics",
+    diagBlurb:
+      "Capability facts about this device, for troubleshooting a pod phone. Contains no learner names, questions or answers.",
+    diagCopy: "copy",
+    diagCopied: "copied",
 
     // Offline readiness
     readyTitle: "Offline readiness",
@@ -410,6 +419,8 @@ export const STRINGS = {
     provVerified: "Vérifié — contrôlé avec ta question",
     provTeacherVerified: "Vérifié par un enseignant",
     provFromExample: "Issu d'un exemple vérifié",
+    provChecksPassed: "Calculs et unités vérifiés · raisonnement non validé",
+    provChecksFailed: "⚠ Une vérification a échoué — transmis à ton enseignant",
     provGroundedUnchecked: "Basé sur le cours · non contrôlé par une personne",
     provUnchecked: "Réponse de l'IA · non contrôlée par une personne",
     provNoAnswer: "Pas de réponse — transmise à ton enseignant",
@@ -517,6 +528,12 @@ export const STRINGS = {
       `La banque de réponses vérifiées n'est pas encore interrogeable sur cet appareil (${indexed} éléments indexés sur ${total}), donc je ne devine pas. ` +
       `Le modèle de recherche ne se télécharge qu'une seule fois — connecte-toi brièvement et repose la question, puis il fonctionnera hors ligne. ` +
       `Les suites numériques fonctionnent déjà sans aucun modèle.`,
+
+    diagTitle: "Diagnostic de l'appareil",
+    diagBlurb:
+      "Informations techniques sur cet appareil, pour le dépannage d'un téléphone de pod. Ne contient aucun prénom, question ni réponse.",
+    diagCopy: "copier",
+    diagCopied: "copié",
 
     readyTitle: "Préparation hors ligne",
     readyRecheck: "revérifier",

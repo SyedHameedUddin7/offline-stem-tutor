@@ -3,6 +3,7 @@ import { retrieve } from "./retrieval";
 import { generate, isLlmReady } from "./llm";
 import { solveNumberSeries } from "./solvers/numberSeries";
 import { formatNotes, retrieveNotes, type RetrievedNote } from "./reference";
+import { verifyAnswer } from "./verify";
 import { currentLang } from "../i18n/LanguageContext";
 import { STRINGS, type Lang } from "../i18n/strings";
 import type { Confidence, EngineTier, Grounding, RetrievedItem } from "../types";
@@ -15,6 +16,9 @@ export interface TutorAnswer {
   citations: string[];
   /** Top similarity score, surfaced so thresholds stay calibratable. */
   topScore?: number;
+  /** Deterministic post-generation checks; see lib/verify. */
+  verification?: "passed" | "failed" | "unverifiable";
+  verificationNotes?: string[];
 }
 
 export interface TutorRequest {
@@ -106,18 +110,30 @@ async function answerGenerative(
       onToken,
     });
 
+    // Deterministic post-generation checks. Cheap, and they catch the
+    // specific thing a language model gets wrong without noticing:
+    // arithmetic that contradicts itself, and units that cannot be what
+    // the question asked for.
+    const check = verifyAnswer(chapterId, question, content);
+    const verification = check.passed ? "passed" : check.unverifiable ? "unverifiable" : "failed";
+
     return {
       content,
-      // Grounded answers earn "medium"; unaided ones stay "low".
+      // Grounded answers earn "medium"; unaided ones stay "low". A failed
+      // check drops to "low" regardless and auto-flags for a facilitator,
+      // because a detectably wrong answer must not sit in front of a
+      // student looking as confident as a sound one.
       //
-      // Still never "high", even with notes: the notes constrain the facts the
-      // model reaches for, but nothing has checked the reasoning it built on
-      // top of them. Only the solver gets to claim high confidence, because
-      // only the solver actually verifies its own output.
-      confidence: retrieved.length > 0 ? "medium" : "low",
+      // Still never "high", even when every check passes: "nothing
+      // detectably wrong" is a weaker claim than "correct". Only the
+      // solver earns high confidence, because only the solver derived the
+      // result itself.
+      confidence: verification === "failed" ? "low" : retrieved.length > 0 ? "medium" : "low",
       tier: "webgpu-llm",
       citations: retrieved.map((r) => r.note.id),
       topScore: retrieved[0]?.score,
+      verification,
+      verificationNotes: check.notes,
     };
   } catch (err) {
     console.error("Generation failed", err);

@@ -36,6 +36,12 @@ jobs:
 
       # Runs `tsc -b && vite build`. A failing build fails the job — there is
       # deliberately no `continue-on-error` anywhere in this file.
+      # Runs the evaluation dataset against the deterministic solver and
+      # verifiers. Fails the job on any regression, so the accuracy numbers
+      # in the README cannot silently drift away from reality.
+      - name: Evaluate
+        run: npm run eval
+
       - name: Build
         run: npm run build
 

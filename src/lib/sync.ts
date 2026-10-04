@@ -1,4 +1,12 @@
 import { db } from "./db";
+import {
+  bankItemPayloadSchema,
+  flagCreatedPayloadSchema,
+  flagResolvedPayloadSchema,
+  learnerUpsertedPayloadSchema,
+  syncBundleSchema,
+} from "../schemas";
+import { safeParseOne } from "./safeRead";
 import type {
   FlaggedItem,
   Learner,
@@ -227,10 +235,18 @@ export function resolveFlagConflict(
  * Transport-agnostic on purpose: this takes a parsed bundle, so a file, an
  * HTTP response and a WebRTC data channel are all the same thing from here.
  */
-export async function importBundle(bundle: SyncBundle): Promise<MergeReport> {
-  if (bundle.formatVersion !== 1) {
-    throw new Error(`Unsupported sync format: ${String(bundle.formatVersion)}`);
+export async function importBundle(input: unknown): Promise<MergeReport> {
+  // The one genuinely foreign input in the app: a file from another device,
+  // possibly another version, possibly hand-edited. Validated as a whole
+  // before anything is written, so a malformed bundle is refused with a
+  // readable message rather than half-applied.
+  const parsed = syncBundleSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const where = issue.path.join(".") || "bundle";
+    throw new Error(`This file is not a valid sync bundle (${where}: ${issue.message})`);
   }
+  const bundle = parsed.data;
 
   const myDeviceId = await getDeviceId();
   const report: MergeReport = {
@@ -251,7 +267,11 @@ export async function importBundle(bundle: SyncBundle): Promise<MergeReport> {
         : a.seq - b.seq
   );
 
-  for (const event of ordered) {
+  // Zod marks any key whose type includes `undefined` as optional, and
+  // `unknown` does — so the inferred bundle type has `payload?: unknown`
+  // while SyncEvent requires it. The data has been validated; this is an
+  // inference quirk, not a missing check.
+  for (const event of ordered as SyncEvent[]) {
     // Our own events coming back to us: already applied by definition.
     if (event.deviceId === myDeviceId) {
       report.duplicates++;
@@ -280,17 +300,19 @@ type Outcome = "applied" | "superseded" | "ignored";
 async function applyEvent(event: SyncEvent): Promise<Outcome> {
   switch (event.type) {
     case "learner.upserted": {
-      const incoming = event.payload as Learner;
+      const incoming = safeParseOne(learnerUpsertedPayloadSchema, event.payload, "learner");
+      if (!incoming) return "ignored";
       const existing = await db.learners.get(incoming.id);
       if (existing) return "superseded";
       // lastActiveAt is deliberately local: "when was this person last on
       // THIS phone" is not a fact another device can report.
-      await db.learners.put({ ...incoming, lastActiveAt: 0 });
+      await db.learners.put({ ...incoming, lastActiveAt: 0 } as Learner);
       return "applied";
     }
 
     case "flag.created": {
-      const incoming = event.payload as FlaggedItem;
+      const incoming = safeParseOne(flagCreatedPayloadSchema, event.payload, "flag");
+      if (!incoming) return "ignored";
       const existing = await db.flaggedItems.get(incoming.id);
       if (existing) return "superseded";
       await db.flaggedItems.put({ ...incoming, synced: true });
@@ -298,10 +320,8 @@ async function applyEvent(event: SyncEvent): Promise<Outcome> {
     }
 
     case "flag.resolved": {
-      const incoming = event.payload as Pick<
-        FlaggedItem,
-        "id" | "teacherStatus" | "correction" | "promotedItemId"
-      >;
+      const incoming = safeParseOne(flagResolvedPayloadSchema, event.payload, "resolution");
+      if (!incoming) return "ignored";
       const existing = await db.flaggedItems.get(incoming.id);
       // A resolution for a flag this device has never seen: keep the event so
       // it applies if the flag itself arrives in a later bundle, but there is
@@ -328,7 +348,8 @@ async function applyEvent(event: SyncEvent): Promise<Outcome> {
     }
 
     case "bank.item": {
-      const incoming = event.payload as ReasoningItem;
+      const incoming = safeParseOne(bankItemPayloadSchema, event.payload, "bank item");
+      if (!incoming) return "ignored";
       const existing = await db.reasoningItems.get(incoming.id);
       if (existing) return "superseded";
       // No embedding and no model stamp, so indexAnswerBank() picks it up and

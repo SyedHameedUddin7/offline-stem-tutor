@@ -4,6 +4,8 @@ import { db } from "../lib/db";
 import { askTutor } from "../lib/tutor";
 import { logFlagCreated, logLearner } from "../lib/sync";
 import { provenanceOf, provenanceTone, type ProvenanceKind } from "../lib/provenance";
+import { safeParseAll } from "../lib/safeRead";
+import { chatMessageSchema } from "../schemas";
 import { resolveLocalizedChapter } from "../data/subjects";
 import { useLang } from "../i18n/LanguageContext";
 import { useLearner } from "../learner/LearnerContext";
@@ -36,6 +38,8 @@ export function ChatPane({ chapterId }: Props) {
     verified: t.provVerified,
     "teacher-verified": t.provTeacherVerified,
     "from-example": t.provFromExample,
+    "checks-passed": t.provChecksPassed,
+    "checks-failed": t.provChecksFailed,
     "grounded-unchecked": t.provGroundedUnchecked,
     unchecked: t.provUnchecked,
     "no-answer": t.provNoAnswer,
@@ -73,13 +77,16 @@ export function ChatPane({ chapterId }: Props) {
   // This is the read that used to leak: keyed on chapter alone, the next
   // student to pick up the phone saw the previous one's conversation.
   const messages = useLiveQuery(
-    () =>
-      learner
-        ? db.messages
-            .where("[learnerId+chapterId]")
-            .equals([learner.id, chapterId])
-            .sortBy("timestamp")
-        : Promise.resolve([] as ChatMessage[]),
+    async () => {
+      if (!learner) return [] as ChatMessage[];
+      const rows = await db.messages
+        .where("[learnerId+chapterId]")
+        .equals([learner.id, chapterId])
+        .sortBy("timestamp");
+      // One unreadable row — an interrupted write, or a shape from an older
+      // build — costs that row, not the whole conversation.
+      return safeParseAll(chatMessageSchema, rows, "message").valid as ChatMessage[];
+    },
     [learner?.id, chapterId],
     [] as ChatMessage[]
   );
@@ -151,9 +158,13 @@ export function ChatPane({ chapterId }: Props) {
       tier: reply.tier,
       citations: reply.citations,
       topScore: reply.topScore,
-      // Low confidence auto-flags. For Mental Ability this is a real signal —
-      // it means retrieval found nothing close enough to stand on.
-      flagged: reply.confidence === "low",
+      verification: reply.verification,
+      verificationNotes: reply.verificationNotes,
+      // Low confidence auto-flags. For Mental Ability this is a real signal
+      // — retrieval found nothing close enough to stand on. A failed
+      // deterministic check also flags: an answer we can show is wrong
+      // must reach a facilitator, not just carry a quieter label.
+      flagged: reply.confidence === "low" || reply.verification === "failed",
       synced: false,
     };
     await db.messages.add(tutorMsg);
@@ -313,6 +324,9 @@ export function ChatPane({ chapterId }: Props) {
                       {msg.citations && msg.citations.length > 0 && (
                         <span>{msg.citations.length} cited</span>
                       )}
+                      {msg.verificationNotes?.map((note) => (
+                        <span key={note} className="text-danger">{note}</span>
+                      ))}
                     </div>
                   )}
                 </div>

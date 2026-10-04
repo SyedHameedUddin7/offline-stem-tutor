@@ -5,7 +5,14 @@ import { VitePWA } from "vite-plugin-pwa";
 // This project's whole thesis is "works with zero network."
 // The PWA plugin is what makes that literally true: it precaches the
 // app shell so the tutor loads from a cold start with no connection at all.
+const appVersion = `${process.env.npm_package_version ?? "0.0.0"}+${
+  process.env.GITHUB_SHA?.slice(0, 7) ?? "local"
+}`;
+
 export default defineConfig({
+  // Surfaced on the diagnostics screen so a bug report from a pod says
+  // which build it came from.
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   build: {
     rollupOptions: {
       output: {

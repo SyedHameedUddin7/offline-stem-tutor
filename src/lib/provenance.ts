@@ -20,6 +20,10 @@ export type ProvenanceKind =
   | "teacher-verified"
   /** Came from a vetted exemplar that shipped with the app. */
   | "from-example"
+  /** Model answer whose arithmetic and units survived deterministic checks. */
+  | "checks-passed"
+  /** Model answer that failed a deterministic check — demonstrably wrong. */
+  | "checks-failed"
   /** Model answer with chapter reference material in front of it. */
   | "grounded-unchecked"
   /** Model answer with nothing behind it. */
@@ -28,7 +32,7 @@ export type ProvenanceKind =
   | "no-answer";
 
 export function provenanceOf(
-  message: Pick<ChatMessage, "tier" | "citations" | "flagged">,
+  message: Pick<ChatMessage, "tier" | "citations" | "flagged" | "verification">,
   /** True when the grounding exemplar was teacher-authored. */
   teacherSourced = false
 ): ProvenanceKind {
@@ -39,6 +43,13 @@ export function provenanceOf(
     case "answer-bank":
       return teacherSourced ? "teacher-verified" : "from-example";
     case "webgpu-llm":
+      // A failed deterministic check outranks everything: we can show this
+      // answer is wrong, and that must be the headline.
+      if (message.verification === "failed") return "checks-failed";
+      // A passed check is the strongest thing a model answer can earn. Note
+      // it still is not "verified" — the checks confirm the arithmetic and
+      // units are sound, not that the reasoning reached the right place.
+      if (message.verification === "passed") return "checks-passed";
       // Citations mean reference notes or retrieved exemplars were in the
       // prompt. That constrains the facts it reached for; it does not mean
       // anyone checked the reasoning built on top of them.
@@ -62,6 +73,7 @@ export function provenanceTone(kind: ProvenanceKind): "good" | "neutral" | "caut
     case "teacher-verified":
       return "good";
     case "from-example":
+    case "checks-passed":
       return "neutral";
     default:
       return "caution";

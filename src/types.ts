@@ -252,6 +252,12 @@ export interface ChatMessage {
   tier?: EngineTier;
   /** Tutor messages only: ReasoningItem ids this answer was grounded on. */
   citations?: string[];
+  /** Tutor messages only: outcome of deterministic post-generation checks.
+   *  "passed" means nothing detectably wrong — a weaker and more honest
+   *  claim than "correct", which only the solver can make. */
+  verification?: "passed" | "failed" | "unverifiable";
+  /** Tutor messages only: why verification failed, for the facilitator. */
+  verificationNotes?: string[];
   /** Tutor messages only: top retrieval similarity. Stored rather than
    *  discarded so the grounding thresholds can be calibrated against real
    *  questions instead of guessed at. */

@@ -1,4 +1,6 @@
 import { db } from "./db";
+import { safeParseAll, safeParseOne } from "./safeRead";
+import { learnerSchema } from "../schemas";
 import type { Learner } from "../types";
 
 /**
@@ -25,7 +27,8 @@ export const LEARNER_COLORS = [
 export async function listLearners(): Promise<Learner[]> {
   // Most recently active first: on a shared phone the person who used it last
   // is the likeliest next user, and that saves a scan of the whole list.
-  return db.learners.orderBy("lastActiveAt").reverse().toArray();
+  const rows = await db.learners.orderBy("lastActiveAt").reverse().toArray();
+  return safeParseAll(learnerSchema, rows, "learner").valid;
 }
 
 export async function createLearner(name: string): Promise<Learner> {
@@ -107,8 +110,11 @@ export function clearActiveLearner(): void {
 export async function resolveActiveLearner(): Promise<Learner | null> {
   const id = getActiveLearnerId();
   if (!id) return null;
-  const learner = await db.learners.get(id);
+  const row = await db.learners.get(id);
+  const learner = row ? safeParseOne(learnerSchema, row, "learner") : null;
   if (!learner) {
+    // Missing or unreadable both mean the same thing to the student: fall
+    // through to the picker rather than opening someone else's session.
     clearActiveLearner();
     return null;
   }
