@@ -38,12 +38,33 @@ With **no model downloaded**, offline:
 - [ ] `What is photosynthesis?` in Number Series → refused and flagged, no guess.
 - [ ] Learn English → Numbers → play a round; Word builder → spell one word.
 
+## 4b. All four subjects with no AI model — You (logic: Auto)
+
+Airplane Mode on, no model ever downloaded. In each chapter the strip under the chapter list should say `AI model not installed — everything listed here works without it`.
+- [ ] **Maths** → Linear Equations → Ask `Solve: (2x - 1)/3 = (x + 4)/2` → steps, **x = 14**, `Check: … left side = 9, right side = 9 ✓`, badge `Verified`.
+- [ ] Maths → Solve tab → tap any example chip → Solve. Mensuration → shape form: circle, radius 7 cm → 49π ≈ 153.94, with the 22/7 and 3.14 values.
+- [ ] Maths → Practice → answer a generated question wrong → `Not quite`, worked solution shown. `New set` gives new numbers.
+- [ ] **Physics** → Motion → Ask `A bus travels at 72 km/h for 15 min. What distance does it cover?` → **18000 m**.
+- [ ] Physics → Ask `A car accelerates for 10 s. Find its acceleration.` → says what is missing; **not** sent to the teacher.
+- [ ] Physics → Solve → formula form (e.g. Ohm's law, find I, V = 12, R = 4) → 3 A. Try R = 0 → refused, no crash.
+- [ ] **Biology** → Health & Disease → Ask `How does a mosquito spread malaria?` → lesson text, badge `From the chapter notes · not checked against your question`.
+- [ ] Biology → Ask `What is DNA replication?` → honest "can't answer offline", related material, sent to teacher. No invented answer.
+- [ ] Biology → Learn → open a lesson, flip flashcards, search `bile`. Practice → MCQ and short answers with explanations.
+- [ ] **Mental Ability** → Practice → answer-bank questions; long answers are self-marked.
+- [ ] "What works offline in this subject" → table with every chapter's counts.
+
 ## 5. Facilitator PIN and teacher correction — You (PIN/lockout logic: Auto)
 
 - [ ] Teacher review → PIN `1234` rejected, `123456` rejected, `135792` accepted.
 - [ ] Wrong PIN ×5 → cooldown. Reload → cooldown still running.
 - [ ] Correct a flagged answer → `Save + teach the tutor` → marked `in answer bank`. Works offline even without the search model; it becomes searchable once that model has loaded (step 6).
 - [ ] As the student, ask the same question → answer labelled `Verified by a teacher`.
+
+## 5b. Curriculum pack import — You (validation: Auto)
+
+- [ ] Teacher review → Curriculum packs → import a valid pack JSON (format in `src/schemas/index.ts`, `contentPackSchema`) → counts shown; its lessons appear in Learn labelled `from <pack title>`.
+- [ ] Import a broken file (edit one `chapterId` to `chem-atoms`) → rejected with the reason; nothing changes.
+- [ ] `remove` → its items disappear; built-in content unaffected.
 
 ## 6. Optional model download, retry, offline use — You (cache-state and removal logic: Auto)
 
@@ -76,6 +97,7 @@ Language model (880 MB Light or 1.6 GB Standard, needs WebGPU), online:
 ## 9. French — You (string parity: Auto, type-checked)
 
 - [ ] Toggle `Français`: interface, chapters, solver explanation, English-game hints and model messages all in French.
+- [ ] Solve tab and solver replies in French (`Résous : 3x + 7 = 22`). Lessons, cards and questions show `anglais uniquement`; the coverage strip says the content is English only.
 - [ ] Ask `Résous : 5x - 3 = 17` in Maths (with the model) → answer in French.
 - [ ] A phone set to French opens in French on first visit.
 - [ ] Have a French speaker skim the game hints and model messages.
@@ -88,15 +110,16 @@ Not yet performed on real hardware. Do not claim it until it is.
 - [ ] Header shows `cpu`/no WebGPU → language model offered as unavailable, app still fully usable.
 - [ ] Search model: time to first grounded answer: ______
 - [ ] Emoji in the English game all render (no empty boxes); letter tiles easy to tap.
+- [ ] Learn / Practice / Solve tabs open quickly; typing in Learn search does not lag; the physics formula form fits the screen.
 - [ ] Airplane Mode cold start from the home-screen icon.
 - [ ] Teacher review → Diagnostics → copy the block and keep it with the results.
 
-## Demo video: suggested order (≈3 min)
+## Live demo walkthrough (≈5 min, e.g. on the recruiter call)
 
 1. Live URL, `✓ works offline` badge (step 1).
 2. **Airplane Mode on**, close and reopen app (step 2): the core claim.
-3. `2, 4, 6, 8, ?` → 10, Verified, no model (step 4).
+3. `2, 4, 6, 8, ?` → 10, Verified, no model (step 4). Then step 4b: a Maths equation, a Physics problem with km/h, and a Biology lesson answer, still in airplane mode.
 4. Off-topic question refused and flagged; teacher corrects it; student gets `Verified by a teacher` (step 5).
 5. Learn English: one picture match, one word builder (step 4).
 6. Switch to French (step 9).
-7. Optional: pre-downloaded model answering offline (step 6). Download it **before** recording.
+7. Optional: pre-downloaded model answering offline (step 6). Download it **before** the call.
