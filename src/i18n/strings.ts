@@ -111,9 +111,15 @@ export const STRINGS = {
     englishTile: "Learn English",
     englishKicker: "game · offline",
     englishTagline: "Learn English words with pictures.",
-    englishTitle: "Picture match",
+    englishModeMatch: "Picture match",
+    englishModeSpell: "Word builder",
     englishBlurb:
       "Match each picture to its English word. Words you miss come back until you know them. Everything here works with no connection.",
+    englishSpellBlurb:
+      "Spell each word by tapping its letters in order. Topics open in picture match first: learn to recognise a word, then to write it.",
+    englishSpellPrompt: "Spell it in English",
+    englishClear: "Clear",
+    englishRemoveLetter: (letter: string) => `Remove ${letter}`,
     englishReview: "Mixed review",
     englishReviewBlurb: "Words from every topic you have opened. The ones you forget come first.",
     englishLocked: "Learn half of the topic before to open this one",
@@ -425,9 +431,15 @@ export const STRINGS = {
     englishTile: "Apprendre l'anglais",
     englishKicker: "jeu · hors ligne",
     englishTagline: "Apprends des mots anglais avec des images.",
-    englishTitle: "Images et mots",
+    englishModeMatch: "Images et mots",
+    englishModeSpell: "Construis le mot",
     englishBlurb:
       "Associe chaque image à son mot anglais. Les mots manqués reviennent jusqu'à ce que tu les saches. Tout fonctionne sans connexion.",
+    englishSpellBlurb:
+      "Écris chaque mot en touchant ses lettres dans l'ordre. Les thèmes s'ouvrent d'abord dans « Images et mots » : apprends à reconnaître un mot, puis à l'écrire.",
+    englishSpellPrompt: "Écris-le en anglais",
+    englishClear: "Effacer",
+    englishRemoveLetter: (letter: string) => `Retirer ${letter}`,
     englishReview: "Révision mélangée",
     englishReviewBlurb: "Des mots de tous les thèmes ouverts. Ceux que tu oublies viennent d'abord.",
     englishLocked: "Apprends la moitié du thème précédent pour ouvrir celui-ci",

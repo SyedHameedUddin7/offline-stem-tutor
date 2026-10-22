@@ -33,7 +33,7 @@ class TutorDB extends Dexie {
   learners!: EntityTable<Learner, "id">;
   appSettings!: EntityTable<AppSetting, "key">;
   syncEvents!: EntityTable<SyncEvent, "id">;
-  wordProgress!: Table<WordProgress, [string, string]>;
+  wordProgress!: Table<WordProgress, [string, string, string]>;
 
   constructor() {
     super("stem-offline-tutor");
@@ -153,11 +153,11 @@ class TutorDB extends Dexie {
       syncEvents: "id, deviceId, type, entityId, createdAt, exportedAt, [deviceId+seq]",
     });
 
-    // v8: English practice progress, one row per learner per word.
+    // v8: English practice progress, one row per learner per mode per word.
     //
-    // Keyed on the pair rather than a generated id so recording an answer is
-    // a single get-and-put with no lookup first, and a learner cannot end up
-    // with two rows disagreeing about the same word.
+    // Keyed on the triple rather than a generated id so recording an answer
+    // is a single get-and-put with no lookup first, and a learner cannot end
+    // up with two rows disagreeing about the same word in the same game.
     this.version(8).stores({
       learners: "id, name, lastActiveAt",
       messages:
@@ -168,7 +168,7 @@ class TutorDB extends Dexie {
       referenceNotes: "id, chapterId, kind",
       appSettings: "key",
       syncEvents: "id, deviceId, type, entityId, createdAt, exportedAt, [deviceId+seq]",
-      wordProgress: "[learnerId+wordId], learnerId",
+      wordProgress: "[learnerId+mode+wordId], learnerId",
     });
   }
 }

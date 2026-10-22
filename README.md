@@ -33,14 +33,15 @@ Levels 2 and 3 are opt-in, never automatic, and show size and estimated time bef
 - **The model's work is checked.** Arithmetic (`3 x 4 = 14`), dimensional analysis (*"acceleration is 4 N"*) and substitution (a wrong `x`) are verified deterministically. A failure drops confidence, auto-flags the answer and labels it `⚠ A check failed`. Passing earns *"checked · reasoning not verified"*, never "correct". No second model call: the model that made the error is not its judge.
 - **Students read provenance, not scores:** `Verified — checked against your question` (solver), `Verified by a teacher`, `From a verified example`, `Used the chapter material · not checked by a person`, `AI answer · not checked by a person`, `No answer — sent to your teacher`. Raw tier, score and citations sit behind a `details` toggle.
 
-## English picture-match game
+## English game
 
 For the day there is no signal and a student has already used everything downloaded. Fully offline, part of the first-visit download (~18 KB), no model.
 
 - **10 beginner topics:** Numbers, Colours, Family, Body, Food, Animals, School, then STEM-linked Shapes, Nature, Science tools. 78 words, each with a French hint.
-- **Two question types:** picture → word and word → picture, 8 questions a round, distractors always from the same topic so elimination cannot replace knowing.
-- **Never runs out.** Leitner spaced repetition per learner: a correct answer moves a word up a box, a miss resets it, and least-known words come first. *Mixed review* draws from every opened topic.
-- **Progression:** a topic unlocks when half the previous one is learned; up to 3 stars for words mastered (3 correct in a row).
+- **Picture match:** picture → word and word → picture, distractors always from the same topic so elimination cannot replace knowing.
+- **Word builder:** tap scrambled letters into slots to spell the word, checked when every slot is full, with the right spelling shown on a miss. Two-word answers show their gap.
+- **Never runs out.** 8 questions a round, Leitner spaced repetition per learner and **per mode** (recognising a word is not spelling it): a correct answer moves a word up a box, a miss resets it, least-known words come first. *Mixed review* draws from every opened topic.
+- **Progression:** a topic unlocks in both modes when half the previous one is learned in picture match; up to 3 stars per mode for words mastered (3 correct in a row).
 - **No image downloads:** emoji from the phone's font (limited to what Android 7 draws), plus drawn colour swatches, shapes and dot counts. A *Listen* button appears only if the phone has an on-device English voice.
 - Progress is stored per learner and deleted with them. It is the student's own; facilitators do not see it. Add words in `src/data/englishWords.ts`.
 
@@ -72,11 +73,11 @@ For the day there is no signal and a student has already used everything downloa
 ## Tests and evaluation
 
 ```bash
-npm test     # 228 tests, ~1s, deterministic stand-in embedder, no download
+npm test     # 232 tests, ~1s, deterministic stand-in embedder, no download
 npm run eval # 45 versioned cases, all checkable without a language model
 ```
 
-Tests cover the solver (incl. the `2,4,6,8` regression), retrieval bands and domain gate, embedding-cache invalidation, the flywheel, learner isolation, PIN lockout, sync idempotency and convergence, migrations, corrupt-record recovery, the verifiers, and the English game's scheduling, unlocks and storage.
+Tests cover the solver (incl. the `2,4,6,8` regression), retrieval bands and domain gate, embedding-cache invalidation, the flywheel, learner isolation, PIN lockout, sync idempotency and convergence, migrations, corrupt-record recovery, the verifiers, and the English game's scheduling, scrambles, unlocks and per-mode storage.
 
 Eval: 100% on solver agreement, correct refusals, contradiction and unit checks (`npm run eval` skips 14 retrieval cases that need the real embedder; Vitest covers all 45). It measures the deterministic layers, **not** LLM answer quality. Its first run caught a real bug: `2 x 36 = 36` read out of `0.5 x 2 x 36 = 36`.
 
@@ -101,7 +102,7 @@ Online for phases 1–3, offline from 4. Phases 2 and 3 are independent and opti
 | **1 · online, no download** | Wait for `✓ works offline`; add learner `Awa`; Mental Ability → Number Series → `2,4,6,8,?` | **10**, `Verified`, no download |
 | | `120, 99, 80, 63, 48, ?` / `What is photosynthesis?` | 35 / refused and flagged |
 | | Switch to Français; add `Ibrahim` | All French; Ibrahim sees an **empty** history, Awa's intact |
-| | Learn English → Numbers, play a round | French hint after each answer; Colours unlocks after 4 correct |
+| | Learn English → Numbers, play a round; switch to Word builder, play Numbers | French hint after each answer; Colours unlocks after 4 correct; spelling stars separate |
 | **2 · online, ~150 MB** | `Doctor : Hospital :: Teacher : ?`; `Odd one out: 3, 5, 11, 14, 17` | `answer bank ready · wasm`; grounded, 14 |
 | **3 · online, optional** | Maths → Linear Equations → Download; `Solve 3x + 7 = 22`; Physics → *heavier object* | Streams; reflects the misconception note |
 | **4 · offline** | Network off, **no reload**: ask Maths, `7, 14, 21, 28, ?` | Answers locally; 35 instantly |
@@ -126,5 +127,5 @@ Azure Static Web Apps; no backend, by design. `push to main → tsc → test →
 1. **No networked sync transport.** The merge is transport-agnostic; local Wi-Fi / WebRTC and cloud are unbuilt.
 2. **No CPU/WASM language model** between tiers 2 and 3 (llama.cpp on WASM); unmeasured on target hardware.
 3. **Solvers cover one chapter.** Direction sense, row positions and fixed-shift coding are all provably solvable.
-4. **English game has one mode.** Word builder (spelling) is next; sentence builder needs authored sentences.
+4. **English game has no sentences yet.** A sentence builder needs 40–60 authored, teacher-checked beginner sentences. A separate listen-and-pick mode is skipped: many pod phones have no offline English voice, so the in-game Listen button covers it where possible.
 5. Not built by choice: signed sync bundles, conflict UI, bank management screen, assessments, adaptive difficulty, mastery estimation.

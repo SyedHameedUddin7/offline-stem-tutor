@@ -402,7 +402,14 @@ export interface EnglishTopic {
 }
 
 /**
- * How well one learner knows one word, as a Leitner box.
+ * Which game a progress row belongs to. Kept apart because recognising a
+ * word among four pictures and spelling it from memory are different skills,
+ * and a student who can do the first has not shown the second.
+ */
+export type EnglishMode = "match" | "spell";
+
+/**
+ * How well one learner knows one word in one mode, as a Leitner box.
  *
  * Box 0 is "not known yet"; each correct answer moves the word up one box and
  * any miss sends it back to 0. The box is the whole model — no timestamps to
@@ -410,6 +417,7 @@ export interface EnglishTopic {
  */
 export interface WordProgress {
   learnerId: string;
+  mode: EnglishMode;
   wordId: string;
   box: number;
   seen: number;

@@ -7,14 +7,17 @@ import {
   ROUND_LENGTH,
   buildQuestions,
   canReview,
+  isSpelledCorrectly,
   isUnlocked,
   loadProgress,
   nextProgress,
   pickWords,
   recordAnswer,
   reviewRound,
+  spellingTiles,
   starsFor,
   topicRound,
+  unlockedTopics,
   type ProgressMap,
 } from "./english";
 import { ENGLISH_TOPICS } from "../data/englishWords";
@@ -38,16 +41,18 @@ function progressWith(entries: Array<[string, number]>): ProgressMap {
   return new Map(
     entries.map(([wordId, box]): [string, WordProgress] => [
       wordId,
-      { learnerId: "l", wordId, box, seen: 1, correct: box, lastSeenAt: 0 },
+      { learnerId: "l", mode: "match", wordId, box, seen: 1, correct: box, lastSeenAt: 0 },
     ])
   );
 }
 
 const [numbers, colours] = ENGLISH_TOPICS;
+const allWords = ENGLISH_TOPICS.flatMap((t) => t.words);
+const key = { learnerId: "l", mode: "match" as const, wordId: "w" };
 
 describe("word data", () => {
   it("has unique ids and enough words per topic for four choices", () => {
-    const ids = ENGLISH_TOPICS.flatMap((t) => t.words.map((w) => w.id));
+    const ids = allWords.map((w) => w.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const topic of ENGLISH_TOPICS) {
       expect(topic.words.length).toBeGreaterThanOrEqual(CHOICES);
@@ -55,11 +60,16 @@ describe("word data", () => {
       expect(new Set(topic.words.map((w) => w.en)).size).toBe(topic.words.length);
     }
   });
+
+  it("spells every word with plain lowercase letters, so tiles can build it", () => {
+    for (const w of allWords) expect(w.en, w.id).toMatch(/^[a-z]+( [a-z]+)*$/);
+  });
 });
 
-describe("questions", () => {
+describe("picture match", () => {
   it("offers the answer among same-topic choices, with no repeats", () => {
-    for (const q of topicRound(colours, new Map(), seeded(7))) {
+    for (const q of topicRound(colours, "match", new Map(), seeded(7))) {
+      if (q.mode !== "match") throw new Error("expected a match question");
       expect(q.choices).toHaveLength(CHOICES);
       expect(q.choices).toContainEqual(q.word);
       expect(new Set(q.choices.map((c) => c.id)).size).toBe(CHOICES);
@@ -74,18 +84,45 @@ describe("questions", () => {
   });
 
   it("caps a round at the round length", () => {
-    const all = ENGLISH_TOPICS.flatMap((t) => t.words);
-    expect(buildQuestions(pickWords(all, new Map(), seeded()), seeded())).toHaveLength(ROUND_LENGTH);
+    expect(buildQuestions(pickWords(allWords, new Map(), seeded()), "match", seeded())).toHaveLength(
+      ROUND_LENGTH
+    );
+  });
+});
+
+describe("word builder", () => {
+  it("gives exactly the word's letters, scrambled, for every word", () => {
+    const rand = seeded(11);
+    for (const w of allWords) {
+      const tiles = spellingTiles(w, rand);
+      const letters = w.en.replace(/ /g, "");
+      expect(tiles.map((t) => t.letter).sort()).toEqual([...letters].sort());
+      expect(new Set(tiles.map((t) => t.id)).size).toBe(tiles.length);
+      // Every word in the list has two different letters, so none may come
+      // out already spelled.
+      expect(tiles.map((t) => t.letter).join(""), w.id).not.toBe(letters);
+    }
+  });
+
+  it("accepts the spelling with or without the space in two-word answers", () => {
+    const bulb = allWords.find((w) => w.en === "light bulb")!;
+    expect(isSpelledCorrectly(bulb, [..."lightbulb"])).toBe(true);
+    expect(isSpelledCorrectly(bulb, [..."lightblub"])).toBe(false);
+  });
+
+  it("builds spell questions for a round", () => {
+    const qs = topicRound(numbers, "spell", new Map(), seeded());
+    expect(qs.every((q) => q.mode === "spell")).toBe(true);
   });
 });
 
 describe("Leitner progress", () => {
   it("moves up on a correct answer, resets on a miss, and caps at the top box", () => {
-    let p = nextProgress(undefined, "l", "w", true, 1);
+    let p = nextProgress(undefined, key, true, 1);
     expect(p).toMatchObject({ box: 1, seen: 1, correct: 1 });
-    for (let i = 0; i < 10; i++) p = nextProgress(p, "l", "w", true, 2);
+    for (let i = 0; i < 10; i++) p = nextProgress(p, key, true, 2);
     expect(p.box).toBe(MAX_BOX);
-    p = nextProgress(p, "l", "w", false, 3);
+    p = nextProgress(p, key, false, 3);
     expect(p).toMatchObject({ box: 0, seen: 12, correct: 11 });
   });
 });
@@ -105,28 +142,34 @@ describe("unlocks and stars", () => {
   });
 
   it("only reviews words the learner has already met", () => {
-    expect(canReview(new Map())).toBe(false);
+    const open = unlockedTopics(new Map());
+    expect(canReview(open, new Map())).toBe(false);
     const met = progressWith(numbers.words.slice(0, 5).map((w) => [w.id, 0]));
-    expect(canReview(met)).toBe(true);
-    for (const q of reviewRound(met, seeded())) expect(met.has(q.word.id)).toBe(true);
+    expect(canReview(open, met)).toBe(true);
+    for (const q of reviewRound(open, "spell", met, seeded())) expect(met.has(q.word.id)).toBe(true);
   });
 });
 
 describe("storage", () => {
-  it("records answers per learner and removes them with the learner", async () => {
+  it("keeps progress per learner and per mode, and removes it with the learner", async () => {
     const a = await createLearner("Awa");
     const b = await createLearner("Bakary");
     const word = numbers.words[0].id;
 
-    await recordAnswer(a.id, word, true);
-    await recordAnswer(a.id, word, true);
-    await recordAnswer(b.id, word, false);
+    await recordAnswer(a.id, "match", word, true);
+    await recordAnswer(a.id, "match", word, true);
+    await recordAnswer(a.id, "spell", word, false);
+    await recordAnswer(b.id, "match", word, false);
 
-    expect((await loadProgress(a.id)).get(word)?.box).toBe(2);
-    expect((await loadProgress(b.id)).get(word)?.box).toBe(0);
+    const awa = await loadProgress(a.id);
+    // Recognising a word is not evidence of spelling it.
+    expect(awa.match.get(word)?.box).toBe(2);
+    expect(awa.spell.get(word)?.box).toBe(0);
+    expect((await loadProgress(b.id)).match.get(word)?.box).toBe(0);
 
     await deleteLearner(a.id);
-    expect((await loadProgress(a.id)).size).toBe(0);
-    expect((await loadProgress(b.id)).size).toBe(1);
+    const gone = await loadProgress(a.id);
+    expect(gone.match.size + gone.spell.size).toBe(0);
+    expect((await loadProgress(b.id)).match.size).toBe(1);
   });
 });
