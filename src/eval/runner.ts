@@ -41,6 +41,10 @@ export interface EvalMetrics {
   contradictionDetection: number;
   /** Unit errors correctly detected. */
   unitCorrectness: number;
+  /** How many evaluated cases each headline metric above rests on. Printed
+   *  beside it, because "100%" of 4 cases and of 40 are different claims —
+   *  and the refusal rate, offline, covers only the solver's refusals. */
+  counts: Record<"solver" | "refusal" | "contradiction" | "units", { passed: number; evaluated: number }>;
   failures: CaseResult[];
 }
 
@@ -124,10 +128,17 @@ export async function runEvaluation(probe?: GroundingProbe): Promise<EvalMetrics
   }
   for (const d of Object.values(byDomain)) d.accuracy = ratio(d.passed, d.evaluated);
 
-  const subset = (pred: (r: CaseResult) => boolean) => {
+  const count = (pred: (r: CaseResult) => boolean) => {
     const rows = evaluated.filter(pred);
-    return ratio(rows.filter((r) => r.outcome === "pass").length, rows.length);
+    return { passed: rows.filter((r) => r.outcome === "pass").length, evaluated: rows.length };
   };
+  const counts: EvalMetrics["counts"] = {
+    solver: count((r) => r.behaviour === "solve"),
+    refusal: count((r) => r.behaviour === "refuse"),
+    contradiction: count((r) => r.domain === "arithmetic-check" || r.domain === "substitution-check"),
+    units: count((r) => r.domain === "dimension-check"),
+  };
+  const share = (c: { passed: number; evaluated: number }) => ratio(c.passed, c.evaluated);
 
   return {
     datasetVersion: DATASET_VERSION,
@@ -138,17 +149,19 @@ export async function runEvaluation(probe?: GroundingProbe): Promise<EvalMetrics
     failed: evaluated.length - passed.length,
     overallAccuracy: ratio(passed.length, evaluated.length),
     byDomain,
-    solverAgreement: subset((r) => r.behaviour === "solve"),
-    refusalAccuracy: subset((r) => r.behaviour === "refuse"),
-    contradictionDetection: subset(
-      (r) => r.domain === "arithmetic-check" || r.domain === "substitution-check"
-    ),
-    unitCorrectness: subset((r) => r.domain === "dimension-check"),
+    solverAgreement: share(counts.solver),
+    refusalAccuracy: share(counts.refusal),
+    contradictionDetection: share(counts.contradiction),
+    unitCorrectness: share(counts.units),
+    counts,
     failures: evaluated.filter((r) => r.outcome !== "pass"),
   };
 }
 
 const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
+/** A metric with no evaluated cases is "n/a", never a misleading 0.0%. */
+const metric = (c: { passed: number; evaluated: number }) =>
+  c.evaluated === 0 ? "n/a" : `${pct(c.passed / c.evaluated)}  (${c.passed}/${c.evaluated})`;
 
 export function formatReport(m: EvalMetrics): string {
   const lines = [
@@ -156,10 +169,10 @@ export function formatReport(m: EvalMetrics): string {
     `Cases: ${m.total}   evaluated: ${m.evaluated}   skipped: ${m.skipped}`,
     "",
     `Overall verified accuracy ...... ${pct(m.overallAccuracy)}  (${m.passed}/${m.evaluated})`,
-    `Solver agreement ............... ${pct(m.solverAgreement)}`,
-    `Correct refusal rate ........... ${pct(m.refusalAccuracy)}`,
-    `Contradiction detection ........ ${pct(m.contradictionDetection)}`,
-    `Unit correctness ............... ${pct(m.unitCorrectness)}`,
+    `Solver agreement ............... ${metric(m.counts.solver)}`,
+    `Correct refusal rate ........... ${metric(m.counts.refusal)}`,
+    `Contradiction detection ........ ${metric(m.counts.contradiction)}`,
+    `Unit correctness ............... ${metric(m.counts.units)}`,
     "",
     "By domain:",
   ];

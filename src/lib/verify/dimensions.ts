@@ -103,8 +103,11 @@ export function expectedQuantity(question: string): string | null {
 }
 
 /** A numeric value with its unit, as written in an answer. */
+// Ends in a lookahead rather than `\b`: `²` is not a word character, so
+// `\b` after `m/s²` never matched and the regex fell back to `m/s`, reading
+// every correct acceleration as a velocity (and every `m²` as a distance).
 const VALUE_WITH_UNIT =
-  /(-?\d+(?:\.\d+)?)\s*(m\/s\^?2|m\/s²|m\/s|kg\s?m\/s|km\/h|m\^?[23]|m²|m³|kg|km|cm|mm|N|J|kJ|W|kW|Pa|Hz|g|m|s|h)\b/g;
+  /(-?\d+(?:\.\d+)?)\s*(m\/s\^?2|m\/s²|m\/s|kg\s?m\/s|km\/h|m\^?[23]|m²|m³|kg|km|cm|mm|N|J|kJ|W|kW|Pa|Hz|g|m|s|h)(?![A-Za-z0-9²³^])/g;
 
 export interface DimensionReport {
   checked: boolean;

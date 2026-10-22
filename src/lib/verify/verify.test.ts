@@ -204,3 +204,55 @@ describe("verifyAnswer", () => {
     expect(r.issues).not.toContain("dimension");
   });
 });
+
+/**
+ * False alarms found in the final audit. Each one flagged a CORRECT answer
+ * to a teacher, which costs trust in the checks faster than a missed error.
+ */
+describe("audit regressions", () => {
+  it.each([
+    ["1,000 + 250 = 1,250", true],
+    ["1,000 + 250 = 1,350", false],
+    ["1,000,000 - 1 = 999,999", true],
+    ["2,5 + 1 = 3,5", true], // French decimal comma
+    ["2,5 + 1 = 4,5", false],
+    ["22 ÷ 7 = 3.14", true], // rounded to the precision written
+    ["12.5 ÷ 5 = 2.4", false], // not a rounding of 2.5
+    ["The series is 2,4,6,8 and 8 + 2 = 10", true],
+  ])("arithmetic: %s → correct=%s", (text, correct) => {
+    const report = checkArithmetic(text);
+    expect(report.unverifiable).toBe(false);
+    expect(report.wrong.length === 0).toBe(correct);
+  });
+
+  it("reads m/s² and m² as their own units, not m/s and m", () => {
+    const acc = checkDimensions("Find the acceleration.", "a = (20 - 0) / 4 = 5 m/s²");
+    expect(acc).toMatchObject({ checked: true, consistent: true });
+    const vel = checkDimensions("Find the acceleration.", "a = 10 / 2 = 5 m/s.");
+    expect(vel).toMatchObject({ checked: true, consistent: false });
+    expect(checkDimensions("Find the area.", "12 m²").found[0]?.quantity).toBe("area");
+  });
+
+  it.each([
+    ["3x + 7 = 22, so 3x = 15 and x = 5.", 5],
+    ["On ajoute 3 : 5x = 20, donc x = 4.", 4],
+    ["If x = 4 the left side is 19, too small. So x = 5.", 5],
+  ])("final answer from prose: %s", (text, expected) => {
+    expect(extractFinalNumber(text)).toBe(expected);
+  });
+
+  it("does not take a continuing expression as the result", () => {
+    expect(extractFinalNumber("so x = 8/3")).toBeNull();
+    expect(extractFinalNumber("then y = 5 + 2")).toBeNull();
+  });
+
+  it("checks substitution on a prose answer, and catches a wrong one", () => {
+    const q = "Solve for x: 3x + 7 = 22";
+    expect(verifyAnswer("math-linear-equations", q, "3x = 15, so x = 5.").passed).toBe(true);
+    expect(verifyAnswer("math-linear-equations", q, "3x = 18, so x = 6.").issues).toContain("mismatch");
+  });
+
+  it("does not check against a fragment of a longer equation", () => {
+    expect(verifyLinearSolution("Solve: 10 - 3x + 2 = 4", 8 / 3).checked).toBe(false);
+  });
+});

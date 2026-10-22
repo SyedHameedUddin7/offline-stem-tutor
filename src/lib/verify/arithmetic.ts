@@ -36,8 +36,36 @@ export interface ArithmeticReport {
   unverifiable: boolean;
 }
 
-/** `a OP b = c`, tolerating the various multiplication and division glyphs. */
-const CLAIM = /(-?\d+(?:\.\d+)?)\s*([+\-x*×/÷])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/g;
+/**
+ * One number as a model writes it: `1,250` or `1 250` with thousands
+ * separators, `2.5`, or the French decimal comma `2,5`.
+ *
+ * Without this, `1,000 + 250 = 1,250` was read from the middle as
+ * `000 + 250 = 1` and a correct answer was flagged to a teacher. A comma
+ * followed by exactly three digits is taken as a thousands separator, so a
+ * French `1,250` meaning 1.25 is read as 1250 — rare in a lower-secondary
+ * answer, and the cost is a missed check rather than a false alarm.
+ */
+const NUMBER = String.raw`-?(?:\d{1,3}(?:[,\u00A0\u202F]\d{3})+(?!\d)|\d+(?:[.,]\d+)?)`;
+
+/** `a OP b = c`, tolerating the various multiplication and division glyphs.
+ *  The lookbehind stops a match starting inside a longer number. */
+const CLAIM = new RegExp(
+  String.raw`(?<![\d.,])(${NUMBER})\s*([+\-x*×/÷])\s*(${NUMBER})\s*=\s*(${NUMBER})`,
+  "g"
+);
+
+function parseNumber(token: string): number {
+  return /^-?\d{1,3}(?:[,\u00A0\u202F]\d{3})+$/.test(token)
+    ? Number(token.replace(/[,\u00A0\u202F]/g, ""))
+    : Number(token.replace(",", "."));
+}
+
+/** Decimal places the model chose to write, so `3.14` can be accepted for 22 ÷ 7. */
+function decimalsOf(token: string): number {
+  if (/^-?\d{1,3}(?:[,\u00A0\u202F]\d{3})+$/.test(token)) return 0;
+  return token.match(/[.,](\d+)$/)?.[1].length ?? 0;
+}
 
 /**
  * Floating point needs a tolerance, but a fixed epsilon is wrong across
@@ -93,9 +121,9 @@ export function checkArithmetic(text: string): ArithmeticReport {
   for (const match of text.matchAll(CLAIM)) {
     const [whole, l, op, r, c] = match;
     if (match.index !== undefined && isChainFragment(text, match.index)) continue;
-    const left = Number(l);
-    const right = Number(r);
-    const claimed = Number(c);
+    const left = parseNumber(l);
+    const right = parseNumber(r);
+    const claimed = parseNumber(c);
     const actual = apply(left, op, right);
     if (actual === null || !Number.isFinite(actual)) continue;
 
@@ -106,7 +134,12 @@ export function checkArithmetic(text: string): ArithmeticReport {
       right,
       claimed,
       actual,
-      correct: closeEnough(actual, claimed),
+      // A rounded result is still correct: 22 ÷ 7 = 3.14 is what a teacher
+      // writes. Accepted only to the precision the model chose to write, so
+      // 12.5 ÷ 5 = 2.4 still fails.
+      correct:
+        closeEnough(actual, claimed) ||
+        (decimalsOf(c) > 0 && Math.abs(actual - claimed) <= 0.5 * 10 ** -decimalsOf(c) + 1e-12),
     });
   }
 
@@ -133,7 +166,11 @@ export interface SubstitutionResult {
   detail: string;
 }
 
-const LINEAR = /(-?\d*\.?\d*)\s*\*?\s*([a-z])\s*([+-])\s*(\d+\.?\d*)\s*=\s*(-?\d+\.?\d*)/i;
+// The lookbehind refuses to start mid-expression: in `10 - 3x + 2 = 4` the
+// fragment `3x + 2 = 4` is not the equation, and checking against it would
+// flag a correct answer.
+const LINEAR =
+  /(?<![\d.)]\s*[+\-*/×÷]\s*|[\d.])(-?\d*\.?\d*)\s*\*?\s*([a-z])\s*([+-])\s*(\d+\.?\d*)\s*=\s*(-?\d+\.?\d*)(?![\d.]|\s*[+\-*/×÷])/i;
 
 export function verifyLinearSolution(question: string, claimedValue: number): SubstitutionResult {
   const m = question.match(LINEAR);
@@ -162,11 +199,18 @@ export function extractFinalNumber(text: string): number | null {
   const patterns = [
     /(?:ANSWER|RÉPONSE|REPONSE)\s*:?\s*(-?\d+(?:\.\d+)?)/i,
     /(?:answer is|equals|result is|réponse est)\s*:?\s*(-?\d+(?:\.\d+)?)/i,
-    /\b[a-z]\s*=\s*(-?\d+(?:\.\d+)?)\s*$/im,
   ];
   for (const re of patterns) {
     const m = text.match(re);
     if (m) return Number(m[1]);
   }
-  return null;
+  // Otherwise the last `x = 5` in the answer. The prompt does not ask for an
+  // ANSWER line, so this is the form real answers take — and it used to
+  // require the number to end its line, which `x = 5.` never does. An
+  // assignment that continues (`x = 5 + 2`) is working, not a result.
+  const assignments = [
+    ...text.matchAll(/\b[a-z]\s*=\s*(-?\d+(?:\.\d+)?)(?![\d]|\.\d|\s*(?:[+\-*×/÷^]|x\s*\d))/gi),
+  ];
+  const last = assignments.at(-1);
+  return last ? Number(last[1]) : null;
 }
