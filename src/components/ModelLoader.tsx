@@ -4,12 +4,15 @@ import {
   MODELS,
   getLlmStatus,
   initLlm,
-  isModelCached,
+  modelCacheState,
   onLlmStatus,
+  removeModel,
   suggestModel,
   unloadLlm,
   type LlmStatus,
+  type ModelCacheState,
 } from "../lib/llm";
+import { isQuotaError } from "../lib/storagePersistence";
 import { useLang } from "../i18n/LanguageContext";
 import { useCapability } from "../hooks/useCapability";
 import { estimateMinutes } from "../lib/capability";
@@ -28,7 +31,11 @@ export function ModelLoader() {
   const { capability, lowBandwidth } = useCapability();
   const [status, setStatus] = useState<LlmStatus>(getLlmStatus());
   const [modelId, setModelId] = useState<string>(DEFAULT_MODEL_ID);
-  const [cached, setCached] = useState<Record<string, boolean>>({});
+  const [cached, setCached] = useState<Record<string, ModelCacheState>>({});
+  // Bumped after a removal so the cache states are re-read.
+  const [cacheEpoch, setCacheEpoch] = useState(0);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => onLlmStatus(setStatus), []);
 
@@ -40,13 +47,26 @@ export function ModelLoader() {
 
   useEffect(() => {
     let live = true;
-    Promise.all(MODELS.map(async (m) => [m.id, await isModelCached(m.id)] as const))
+    Promise.all(MODELS.map(async (m) => [m.id, await modelCacheState(m.id)] as const))
       .then((pairs) => live && setCached(Object.fromEntries(pairs)))
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [status.state]);
+  }, [status.state, cacheEpoch]);
+
+  async function remove(id: string) {
+    setRemoving(true);
+    try {
+      await removeModel(id);
+    } catch (err) {
+      console.error("Could not remove the model", err);
+    } finally {
+      setRemoving(false);
+      setConfirmRemove(false);
+      setCacheEpoch((n) => n + 1);
+    }
+  }
 
   if (status.state === "ready") {
     const active = MODELS.find((m) => m.id === status.modelId);
@@ -102,7 +122,8 @@ export function ModelLoader() {
   }
 
   const selected = MODELS.find((m) => m.id === modelId) ?? MODELS[0];
-  const alreadyHave = cached[selected.id];
+  const alreadyHave = cached[selected.id] === "complete";
+  const onDevice = (cached[selected.id] ?? "none") !== "none";
 
   return (
     <div className="rounded-card border border-white/10 bg-night-surface px-3 py-2.5">
@@ -139,7 +160,10 @@ export function ModelLoader() {
         {MODELS.map((m) => (
           <button
             key={m.id}
-            onClick={() => setModelId(m.id)}
+            onClick={() => {
+              setModelId(m.id);
+              setConfirmRemove(false);
+            }}
             aria-pressed={m.id === modelId}
             className={`rounded-card border px-2.5 py-1 text-left text-[0.65rem] transition-colors ${
               m.id === modelId
@@ -149,14 +173,53 @@ export function ModelLoader() {
           >
             <span className="font-medium">{m.label}</span>{" "}
             <span className="opacity-70">
-              {m.downloadMB}MB{cached[m.id] ? ` · ${t.onDevice}` : ""}
+              {m.downloadMB}MB
+              {cached[m.id] === "complete"
+                ? ` · ${t.onDevice}`
+                : cached[m.id] === "partial"
+                  ? ` · ${t.modelPartial}`
+                  : ""}
             </span>
           </button>
         ))}
       </div>
 
+      {/* Partial downloads count too: they hold storage and are otherwise
+          unreachable without clearing every learner's data. */}
+      {onDevice && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[0.65rem]">
+          {confirmRemove ? (
+            <>
+              <span className="text-paper/80">{t.modelRemoveConfirm(selected.label, selected.downloadMB)}</span>
+              <button
+                onClick={() => remove(selected.id)}
+                disabled={removing}
+                className="rounded-card border border-danger/50 px-2 py-0.5 text-danger disabled:opacity-50"
+              >
+                {t.modelRemoveYes}
+              </button>
+              <button onClick={() => setConfirmRemove(false)} className="text-muted hover:text-paper">
+                {t.cancel}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmRemove(true)}
+              className="font-mono uppercase tracking-wide text-muted underline decoration-dotted underline-offset-2 hover:text-paper"
+            >
+              {t.modelRemove}
+            </button>
+          )}
+        </div>
+      )}
+
       {status.state === "failed" && (
-        <p className="mt-2 break-words font-mono text-[0.65rem] text-danger">{status.error}</p>
+        <div className="mt-2">
+          <p className="text-xs text-danger">
+            {isQuotaError(status.error) ? t.storageFull : t.modelFailedRetry}
+          </p>
+          <p className="mt-0.5 break-words font-mono text-[0.65rem] text-muted">{status.error}</p>
+        </div>
       )}
     </div>
   );

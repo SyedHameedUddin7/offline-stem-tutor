@@ -180,6 +180,15 @@ export const STRINGS = {
       `One download of about ${mb}MB. After that it answers with no connection at all.`,
     loadModel: "Load model",
     downloadMb: (mb: number) => `Download ${mb}MB`,
+    modelPartial: "partly downloaded",
+    modelRemove: "Remove from device",
+    modelRemoveConfirm: (label: string, mb: number) =>
+      `Delete the ${label} model (${mb}MB) from this device? Learners and their work are not affected.`,
+    modelRemoveYes: "Delete",
+    modelFailedRetry:
+      "The download stopped. Anything already downloaded is kept — tap the button again to resume when you have signal.",
+    storageFull:
+      "This device is out of storage. Free some space, or remove a model you are not using, and try again.",
     onDevice: "on device",
     noWebgpu: "no webgpu on this device",
     noWebgpuBody:
@@ -498,6 +507,15 @@ export const STRINGS = {
       `Un seul téléchargement d'environ ${mb} Mo. Ensuite, il répond sans aucune connexion.`,
     loadModel: "Charger le modèle",
     downloadMb: (mb: number) => `Télécharger ${mb} Mo`,
+    modelPartial: "téléchargé en partie",
+    modelRemove: "Supprimer de l'appareil",
+    modelRemoveConfirm: (label: string, mb: number) =>
+      `Supprimer le modèle ${label} (${mb} Mo) de cet appareil ? Les apprenants et leur travail ne sont pas touchés.`,
+    modelRemoveYes: "Supprimer",
+    modelFailedRetry:
+      "Le téléchargement s'est arrêté. Ce qui est déjà téléchargé est conservé — touche le bouton à nouveau pour reprendre quand tu as du réseau.",
+    storageFull:
+      "Cet appareil n'a plus d'espace. Libère de la place, ou supprime un modèle que tu n'utilises pas, puis réessaie.",
     onDevice: "sur l'appareil",
     noWebgpu: "pas de webgpu sur cet appareil",
     noWebgpuBody:

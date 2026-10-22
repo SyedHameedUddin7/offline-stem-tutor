@@ -258,8 +258,17 @@ export async function promoteCorrectionToBank(
     source: "teacher",
   };
 
-  item.embedding = await embedOne(embeddingTextFor(item, getChapter(item.chapterId)?.name));
-  item.embeddingModel = EMBEDDING_MODEL_ID;
+  // Embedded now if the search model is available. If it is not — a teacher
+  // correcting offline on a phone that never downloaded it — the item is
+  // stored unembedded and indexAnswerBank() picks it up on the next search,
+  // the same path a synced item takes. Failing here used to drop the
+  // correction from the bank and from the sync log, with nothing on screen.
+  try {
+    item.embedding = await embedOne(embeddingTextFor(item, getChapter(item.chapterId)?.name));
+    item.embeddingModel = EMBEDDING_MODEL_ID;
+  } catch (err) {
+    console.warn("Correction stored unindexed; it will be indexed when the search model loads", err);
+  }
   await db.reasoningItems.put(item);
   await db.flaggedItems.update(flagged.id, { promotedItemId: item.id });
   return item;

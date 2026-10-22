@@ -84,28 +84,76 @@ export function loadedModel(): string | null {
   return loadedModelId;
 }
 
+export type ModelCacheState = "complete" | "partial" | "none";
+
 /**
- * Has this model already been downloaded?
+ * How much of this model is already on the device.
  *
  * Worth knowing before offering a download button: on a metered connection
  * the difference between "start" and "resume from cache" is the difference
  * between a 1.6GB bill and none. WebLLM keeps its weights in the Cache API,
  * so the question is answerable locally, offline, in milliseconds.
+ *
+ * "Complete" means every weight shard listed in the model's tensor-cache
+ * manifest is present. It used to mean "any file for this model is cached",
+ * so a download cut off at 5% was labelled "already downloaded — loading
+ * uses no data", and tapping it then pulled the remaining 1.5GB. WebLLM's own
+ * hasModelInCache does this same check, but importing it means loading the
+ * 6MB runtime just to label a button.
  */
-export async function isModelCached(modelId: string): Promise<boolean> {
-  if (!("caches" in window)) return false;
+export async function modelCacheState(modelId: string): Promise<ModelCacheState> {
+  if (!("caches" in window)) return "none";
+  let partial = false;
   try {
-    const names = await caches.keys();
-    for (const name of names) {
+    for (const name of await caches.keys()) {
       if (!name.includes("webllm")) continue;
       const cache = await caches.open(name);
-      const keys = await cache.keys();
-      if (keys.some((req) => req.url.includes(modelId))) return true;
+      const keys = (await cache.keys()).filter((req) => req.url.includes(modelId));
+      if (keys.length === 0) continue;
+      partial = true;
+      const manifest = keys.find((req) => /\/(tensor|ndarray)-cache\.json$/.test(req.url));
+      if (!manifest) continue;
+      const records: Array<{ dataPath: string }> =
+        (await (await cache.match(manifest))?.json())?.records ?? [];
+      const have = new Set(keys.map((req) => req.url));
+      if (records.length > 0 && records.every((r) => have.has(new URL(r.dataPath, manifest.url).href))) {
+        return "complete";
+      }
     }
   } catch {
     // Cache inspection is an optimisation; failing it is not an error.
   }
-  return false;
+  return partial ? "partial" : "none";
+}
+
+export async function isModelCached(modelId: string): Promise<boolean> {
+  return (await modelCacheState(modelId)) === "complete";
+}
+
+/**
+ * Delete a model's weights from the device.
+ *
+ * Without this the only way to get 1.6GB back on a shared phone was clearing
+ * the site's data, which also deletes every learner and their history.
+ */
+export async function removeModel(modelId: string): Promise<void> {
+  if (loadedModelId === modelId) await unloadLlm();
+  try {
+    const { deleteModelAllInfoInCache } = await import("@mlc-ai/web-llm");
+    await deleteModelAllInfoInCache(modelId);
+  } catch (err) {
+    // WebLLM reads the shard manifest to know what to delete, so a download
+    // cut off before the manifest arrived makes it throw. The sweep below
+    // still frees the space.
+    console.warn("WebLLM could not remove the model; clearing its cache entries directly", err);
+  }
+  for (const name of await caches.keys()) {
+    if (!name.includes("webllm")) continue;
+    const cache = await caches.open(name);
+    for (const req of await cache.keys()) {
+      if (req.url.includes(modelId)) await cache.delete(req);
+    }
+  }
 }
 
 /**

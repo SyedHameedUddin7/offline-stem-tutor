@@ -78,3 +78,15 @@ export async function ensurePersisted(): Promise<PersistenceState> {
   }
   return current;
 }
+
+/**
+ * Whether a failure was the device running out of storage.
+ *
+ * The likeliest real failure on a shared phone that is nearly full, and the
+ * one a student can actually do something about — so it gets its own
+ * message instead of the browser's raw error text.
+ */
+export function isQuotaError(error: unknown): boolean {
+  const text = error instanceof Error ? `${error.name} ${error.message}` : String(error);
+  return /quota|no space|disk is full|storage is full/i.test(text);
+}
