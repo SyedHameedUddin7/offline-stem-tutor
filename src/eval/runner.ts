@@ -1,6 +1,10 @@
 import { DATASET_VERSION, EVAL_CASES, type EvalCase } from "./dataset";
 import { solveNumberSeries } from "../lib/solvers/numberSeries";
 import { verifyAnswer } from "../lib/verify";
+import { solveMaths } from "../lib/solvers/maths";
+import { solvePhysics } from "../lib/solvers/physics/engine";
+import { searchSubject, strongMatch } from "../lib/curriculum";
+import { resolveChapter } from "../data/subjects";
 
 /**
  * The evaluation runner.
@@ -44,7 +48,10 @@ export interface EvalMetrics {
   /** How many evaluated cases each headline metric above rests on. Printed
    *  beside it, because "100%" of 4 cases and of 40 are different claims —
    *  and the refusal rate, offline, covers only the solver's refusals. */
-  counts: Record<"solver" | "refusal" | "contradiction" | "units", { passed: number; evaluated: number }>;
+  counts: Record<
+    "solver" | "refusal" | "contradiction" | "units" | "maths" | "physics" | "declines" | "lessons",
+    { passed: number; evaluated: number }
+  >;
   failures: CaseResult[];
 }
 
@@ -62,6 +69,15 @@ async function runCase(c: EvalCase, probe?: GroundingProbe): Promise<CaseResult>
 
   switch (c.behaviour) {
     case "solve": {
+      if (c.domain === "math-solver" || c.domain === "physics-solver") {
+        const o = c.domain === "math-solver" ? solveMaths(c.question, c.lang ?? "en") : solvePhysics(c.question, c.lang ?? "en", c.chapterId);
+        if (o.kind !== "solved") return { ...base, outcome: "fail", detail: o.kind === "invalid" ? `declined: ${o.reason}` : "not recognised" };
+        if (!o.result.check.passed) return { ...base, outcome: "fail", detail: `own check failed: ${o.result.check.detail}` };
+        const got = o.result.value ?? Number.NaN;
+        return Math.abs(got - c.expected!) <= 1e-6 * Math.max(1, Math.abs(c.expected!))
+          ? { ...base, outcome: "pass", detail: o.result.answer }
+          : { ...base, outcome: "fail", detail: `got ${got}, expected ${c.expected}` };
+      }
       const solved = solveNumberSeries(c.question);
       if (!solved) return { ...base, outcome: "fail", detail: "solver returned no answer" };
       return solved.next === c.expected
@@ -92,6 +108,27 @@ async function runCase(c: EvalCase, probe?: GroundingProbe): Promise<CaseResult>
       return grounded
         ? { ...base, outcome: "pass", detail: "grounded" }
         : { ...base, outcome: "fail", detail: "failed to ground a supported question" };
+    }
+
+    case "decline": {
+      const subject = resolveChapter(c.chapterId ?? "")?.subject.id;
+      const o = subject === "physics" ? solvePhysics(c.question, "en", c.chapterId) : solveMaths(c.question, "en");
+      return o.kind === "solved"
+        ? { ...base, outcome: "fail", detail: `answered anyway: ${o.result.answer}` }
+        : { ...base, outcome: "pass", detail: o.kind === "invalid" ? `asked for: ${o.reason.slice(0, 60)}` : "left unclaimed" };
+    }
+
+    case "lesson":
+    case "no-lesson": {
+      const subject = resolveChapter(c.chapterId ?? "")?.subject.id;
+      if (!subject) return { ...base, outcome: "fail", detail: "unknown chapter" };
+      const match = strongMatch(await searchSubject(subject, c.question, 5), c.question);
+      if (c.behaviour === "no-lesson") {
+        return match ? { ...base, outcome: "fail", detail: `presented "${match.doc.title}" as an answer` } : { ...base, outcome: "pass", detail: "no lesson claimed" };
+      }
+      return match && match.doc.title === c.expectedTitle
+        ? { ...base, outcome: "pass", detail: match.doc.title }
+        : { ...base, outcome: "fail", detail: match ? `chose "${match.doc.title}"` : "no lesson matched" };
     }
 
     case "verify-pass":
@@ -133,7 +170,11 @@ export async function runEvaluation(probe?: GroundingProbe): Promise<EvalMetrics
     return { passed: rows.filter((r) => r.outcome === "pass").length, evaluated: rows.length };
   };
   const counts: EvalMetrics["counts"] = {
-    solver: count((r) => r.behaviour === "solve"),
+    solver: count((r) => r.behaviour === "solve" && r.domain === "number-series"),
+    maths: count((r) => r.domain === "math-solver"),
+    physics: count((r) => r.domain === "physics-solver"),
+    declines: count((r) => r.behaviour === "decline"),
+    lessons: count((r) => r.behaviour === "lesson" || r.behaviour === "no-lesson"),
     refusal: count((r) => r.behaviour === "refuse"),
     contradiction: count((r) => r.domain === "arithmetic-check" || r.domain === "substitution-check"),
     units: count((r) => r.domain === "dimension-check"),
@@ -173,6 +214,10 @@ export function formatReport(m: EvalMetrics): string {
     `Correct refusal rate ........... ${metric(m.counts.refusal)}`,
     `Contradiction detection ........ ${metric(m.counts.contradiction)}`,
     `Unit correctness ............... ${metric(m.counts.units)}`,
+    `Maths solver (hand-worked) ..... ${metric(m.counts.maths)}`,
+    `Physics solver (hand-worked) ... ${metric(m.counts.physics)}`,
+    `Declines bad/conceptual input .. ${metric(m.counts.declines)}`,
+    `Lesson matching policy ......... ${metric(m.counts.lessons)}`,
     "",
     "By domain:",
   ];

@@ -118,6 +118,7 @@ export function FacilitatorDashboard() {
     summary.provenance.solver +
     summary.provenance["answer-bank"] +
     summary.provenance["webgpu-llm"] +
+    summary.provenance.curriculum +
     summary.provenance.unavailable;
   const verified = summary.provenance.solver + summary.provenance["answer-bank"];
 
@@ -125,6 +126,9 @@ export function FacilitatorDashboard() {
     { label: t.tierSolver, value: summary.provenance.solver },
     { label: t.tierBank, value: summary.provenance["answer-bank"] },
     { label: t.tierLlm, value: summary.provenance["webgpu-llm"] },
+    // Not counted as verified: a lesson that matched the question's words is
+    // relevant material, not an answer anyone checked against the question.
+    { label: t.tierCurriculum, value: summary.provenance.curriculum },
     { label: t.tierNone, value: summary.provenance.unavailable },
   ];
 
