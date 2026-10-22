@@ -104,7 +104,9 @@ export default function App() {
             {t.appTitle}
           </h1>
         </div>
-        <div className="flex items-center gap-3">
+        {/* Wraps so the badges stay on screen at phone width — six of them
+            do not fit in one row on a 360px Android. */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <nav className="flex rounded-card border border-white/5 bg-night-surface p-1">
             <button
               onClick={() => setView("tutor")}
