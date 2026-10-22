@@ -1,5 +1,11 @@
 /**
- * Evaluation dataset, v1.
+ * Evaluation dataset, v2.
+ *
+ * v2 adds cases phrased the way the model actually writes: thousands
+ * separators, French decimal commas, rounded results, `m/s²`, and a final
+ * `x = 5.` in prose instead of an ANSWER line. v1's verification cases all
+ * used the tidy form, so it reported 100% on checks that, on real output,
+ * raised false alarms or never ran.
  *
  * Scoped to what this application actually teaches. There is no chemistry
  * here because there is no chemistry curriculum here — padding the set with
@@ -12,7 +18,7 @@
  * than a snapshot of one model run.
  */
 
-export const DATASET_VERSION = "v1";
+export const DATASET_VERSION = "v2";
 
 export type EvalDomain =
   | "number-series"
@@ -181,4 +187,27 @@ export const EVAL_CASES: EvalCase[] = [
   { id: "dm-006", domain: "dimension-check", difficulty: "medium", behaviour: "verify-fail",
     chapterId: "phys-work-energy", question: "Find the power of the motor.",
     answer: "The power is 500 J", unit: "W" },
+
+  /* ---------------- v2: real-output phrasing ---------------- */
+  { id: "ar-006", domain: "arithmetic-check", difficulty: "medium", behaviour: "verify-pass",
+    chapterId: "math-ratio-percentage", question: "A farmer has 1,000 kg and buys 250 kg more. Total?",
+    answer: "1,000 + 250 = 1,250 kg in total.", notes: "Thousands separator." },
+  { id: "ar-007", domain: "arithmetic-check", difficulty: "medium", behaviour: "verify-pass",
+    chapterId: "math-number-systems", question: "Combien font 2,5 plus 1 ?",
+    answer: "2,5 + 1 = 3,5", notes: "French decimal comma." },
+  { id: "ar-008", domain: "arithmetic-check", difficulty: "medium", behaviour: "verify-pass",
+    chapterId: "math-mensuration", question: "Approximate 22 divided by 7.",
+    answer: "22 ÷ 7 = 3.14 to two decimal places.", notes: "Rounded result." },
+  { id: "ar-009", domain: "arithmetic-check", difficulty: "medium", behaviour: "verify-fail",
+    chapterId: "math-number-systems", question: "Divide 12.5 by 5.",
+    answer: "12.5 ÷ 5 = 2.4", notes: "Rounding tolerance must not excuse a wrong decimal." },
+  { id: "dm-007", domain: "dimension-check", difficulty: "medium", behaviour: "verify-pass",
+    chapterId: "phys-motion", question: "A car goes from 0 to 20 m/s in 4 s. Find its acceleration.",
+    answer: "a = (20 - 0) / 4 = 5 m/s²", unit: "m/s²", notes: "Superscript unit." },
+  { id: "sb-005", domain: "substitution-check", difficulty: "easy", behaviour: "verify-pass",
+    chapterId: "math-linear-equations", question: "Solve for x: 3x + 7 = 22",
+    answer: "Subtract 7 from both sides: 3x = 15. Divide by 3, so x = 5.", notes: "Prose, no ANSWER line." },
+  { id: "sb-006", domain: "substitution-check", difficulty: "easy", behaviour: "verify-fail",
+    chapterId: "math-linear-equations", question: "Solve for x: 3x + 7 = 22",
+    answer: "Subtract 7 from both sides: 3x = 18. Divide by 3, so x = 6." },
 ];

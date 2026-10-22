@@ -43,8 +43,15 @@ export function onSwState(fn: (s: SwState) => void): () => void {
 
 let updateSW: ((reload?: boolean) => Promise<void>) | null = null;
 
-/** Apply a waiting update and reload. */
+/** Apply a waiting update and reload. Only ever called from the student's tap. */
 export async function applyUpdate(): Promise<void> {
+  // The plugin reloads on its "controlling" event only when this tab was
+  // already controlled at registration — so not in the first-visit tab, where
+  // the tap activated the new version and then nothing happened. Reloading on
+  // the controller change ourselves covers both.
+  navigator.serviceWorker?.addEventListener("controllerchange", () => window.location.reload(), {
+    once: true,
+  });
   await updateSW?.(true);
 }
 
@@ -66,7 +73,13 @@ export function initServiceWorker(): void {
       // onOfflineReady only fires on the install that does the precaching.
       // On every later visit the worker is already active, so without this
       // the app would claim it was still "registering" forever.
-      if (registration?.active && !registration.installing) set("offline-ready");
+      //
+      // Never downgrades a pending update: an update left waiting from an
+      // earlier visit is announced through onNeedRefresh, which can arrive
+      // before this callback.
+      if (current === "update-available") return;
+      if (registration?.waiting) set("update-available");
+      else if (registration?.active && !registration.installing) set("offline-ready");
     },
     onRegisterError(error) {
       console.error("Service worker registration failed", error);

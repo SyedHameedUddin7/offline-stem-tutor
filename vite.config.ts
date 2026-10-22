@@ -37,7 +37,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt", not "autoUpdate". With autoUpdate the plugin never calls
+      // onNeedRefresh — so the "update ready" badge could not appear — and
+      // instead reloads the page the moment a new deploy activates: mid
+      // answer, mid game round, or mid way through a 1.6GB model download.
+      // Here the new version waits until the student taps the badge, or
+      // until every tab of the app has been closed.
+      registerType: "prompt",
       // Registered by hand in src/lib/serviceWorker.ts instead of via an
       // injected script, so the app can observe when precaching finishes
       // and actually tell the user they are ready to go offline. Without
@@ -82,6 +88,15 @@ export default defineConfig({
         // service worker's one job is making sure the shell boots with the
         // radio off.
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+
+        // Take control of the open tab as soon as the worker activates.
+        // "prompt" mode leaves this off, and then the first-visit tab is
+        // never controlled: tapping "update ready" in it does nothing, and a
+        // model downloaded in that session bypasses the runtime cache below,
+        // so the 21MB WASM is not there the first time the app opens offline.
+        // It does not undo the prompt: a new version still only activates on
+        // the tap or once every tab is closed.
+        clientsClaim: true,
 
         // The inference runtime is lazy-loaded and must not be part of the
         // first-visit cost. A student who only uses the solver or the

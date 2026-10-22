@@ -203,6 +203,40 @@ describe("teacher correction flywheel", () => {
     expect(after.matches[0].item.answer).toBe(correction);
   });
 
+  it("keeps a correction made with no search model, and indexes it once one loads", async () => {
+    const { embedOne } = await import("./embeddings");
+    const question = "What is the angle between the hands of a clock at 3:15?";
+    const flagged = {
+      id: "flag-offline",
+      messageId: "msg-offline",
+      learnerId: "l-1",
+      subjectId: "mental-ability" as const,
+      chapterId: "ma-arrangements",
+      question,
+      aiAnswer: "(a wrong answer)",
+      teacherStatus: "pending" as const,
+      timestamp: Date.now(),
+      synced: false,
+    };
+    await db.flaggedItems.add(flagged);
+    const correction =
+      "The hour hand moves 0.5 degrees per minute. At 3:15 it is at 97.5 degrees " +
+      "and the minute hand is at 90 degrees, so the angle between the hands is 7.5 degrees.";
+
+    // The search model is not on this device yet.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(embedOne).mockRejectedValueOnce(new Error("Failed to fetch"));
+    const promoted = await promoteCorrectionToBank(flagged, correction);
+
+    expect((await db.reasoningItems.get(promoted.id))?.embedding).toBeUndefined();
+    expect((await db.flaggedItems.get("flag-offline"))!.promotedItemId).toBe(promoted.id);
+
+    // Later, with the model available, the next search indexes and finds it.
+    const after = await retrieve("ma-arrangements", question);
+    expect(after.matches[0].item.id).toBe(promoted.id);
+    expect(after.status).toBe("grounded");
+  });
+
   it("keeps teacher items when the seed bank is re-versioned", async () => {
     const flagged = {
       id: "flag-2",

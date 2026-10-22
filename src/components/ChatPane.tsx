@@ -5,6 +5,7 @@ import { askTutor } from "../lib/tutor";
 import { logFlagCreated, logLearner } from "../lib/sync";
 import { provenanceOf, provenanceTone, type ProvenanceKind } from "../lib/provenance";
 import { safeParseAll } from "../lib/safeRead";
+import { isQuotaError } from "../lib/storagePersistence";
 import { chatMessageSchema } from "../schemas";
 import { resolveLocalizedChapter } from "../data/subjects";
 import { useLang } from "../i18n/LanguageContext";
@@ -122,7 +123,7 @@ export function ChatPane({ chapterId }: Props) {
       await exchange(question);
     } catch (err) {
       console.error("Failed to complete the exchange", err);
-      setFailure(err instanceof Error ? err.message : String(err));
+      setFailure(isQuotaError(err) ? t.storageFull : err instanceof Error ? err.message : String(err));
     } finally {
       setIsThinking(false);
       setStreaming(null);

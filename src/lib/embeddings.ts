@@ -118,6 +118,10 @@ async function getExtractor(): Promise<FeatureExtractionPipeline> {
     }
 
     const message = lastError instanceof Error ? lastError.message : String(lastError);
+    // Forget the failed attempt, or every later call would return this same
+    // rejected promise: a download cut off by a dropped connection could
+    // never be retried without reloading the page, even once signal is back.
+    extractorPromise = null;
     setStatus({ state: "failed", error: message });
     throw new Error(`Could not initialise embedder: ${message}`);
   })();
