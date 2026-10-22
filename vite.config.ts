@@ -70,7 +70,7 @@ export default defineConfig({
       workbox: {
         // Precache the app shell only.
         //
-        // Two things are deliberately NOT handled here:
+        // One thing is deliberately NOT handled here:
         //
         //  - Model weights. WebLLM maintains its own Cache API store keyed by
         //    model id, with its own integrity and progress handling. A
@@ -78,26 +78,21 @@ export default defineConfig({
         //    roughly a gigabyte on a phone that does not have a spare
         //    gigabyte.
         //
-        //  - Lesson videos. Those are downloaded on purpose, by the student or
-        //    teacher, with a visible byte cost (see LessonsPane). Caching them
-        //    as a side effect of playback is the opposite of what a metered
-        //    connection deserves.
-        //
-        // Both of those are the app's business, not the service worker's. The
+        // That is the app's business, not the service worker's. The
         // service worker's one job is making sure the shell boots with the
         // radio off.
         globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
 
         // The inference runtime is lazy-loaded and must not be part of the
-        // first-visit cost. A student who only watches a downloaded video
-        // should never pay for the ONNX stack.
+        // first-visit cost. A student who only uses the solver or the
+        // English game should never pay for the ONNX stack.
         globIgnores: ["**/transformers-*.js", "**/webllm-*.js", "**/ort-wasm*"],
 
         runtimeCaching: [
           {
             // ...but once something HAS pulled the runtime in, keep it.
             //
-            // This is not the same call as weights and videos. Those are
+            // This is not the same call as model weights. Those are
             // content, with a size a student should decide about. This is
             // infrastructure: by the time it is fetched, the student has
             // already chosen to use the feature, and failing to cache it

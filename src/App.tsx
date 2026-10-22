@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { SubjectPicker } from "./components/SubjectPicker";
 import { ChapterPicker } from "./components/ChapterPicker";
 import { ChatPane } from "./components/ChatPane";
-import { LessonsPane } from "./components/LessonsPane";
 import { TeacherPanel } from "./components/TeacherPanel";
 import { ConnectivityIndicator } from "./components/ConnectivityIndicator";
 import { EngineStatus } from "./components/EngineStatus";
@@ -19,6 +18,7 @@ import { StorageWarning } from "./components/StorageWarning";
 import { InstallPrompt } from "./components/InstallPrompt";
 import { LearnerBadge } from "./components/LearnerBadge";
 import { FacilitatorGate } from "./components/FacilitatorGate";
+import { EnglishGame } from "./components/EnglishGame";
 import { firstChapterOf } from "./data/subjects";
 import { seedReasoningBank, seedReferenceNotes } from "./lib/db";
 import type { SubjectId } from "./types";
@@ -29,6 +29,7 @@ export default function App() {
   const [subjectId, setSubjectId] = useState<SubjectId>("mathematics");
   const [chapterId, setChapterId] = useState<string>(() => firstChapterOf("mathematics").id);
   const [view, setView] = useState<View>("tutor");
+  const [englishActive, setEnglishActive] = useState(false);
   const { t } = useLang();
   const { learner, loading: learnerLoading } = useLearner();
 
@@ -62,6 +63,7 @@ export default function App() {
   }, []);
 
   function selectSubject(next: SubjectId) {
+    setEnglishActive(false);
     setSubjectId(next);
     setChapterId(firstChapterOf(next).id);
   }
@@ -131,28 +133,38 @@ export default function App() {
 
       {view === "tutor" ? (
         <main className="space-y-3">
-          <SubjectPicker activeId={subjectId} onSelect={selectSubject} />
-          <ChapterPicker
-            subjectId={subjectId}
-            activeChapterId={chapterId}
-            onSelect={setChapterId}
+          <SubjectPicker
+            activeId={subjectId}
+            onSelect={selectSubject}
+            englishActive={englishActive}
+            onSelectEnglish={() => setEnglishActive(true)}
           />
-          <InstallPrompt />
-          <StorageWarning />
-          <LowBandwidthNotice />
-          <ModelLoader />
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[2fr_1fr]">
-            <div className="h-[58vh] min-h-[420px]">
-              <ErrorBoundary label={t.tabTutor}>
-                <ChatPane chapterId={chapterId} />
+          {englishActive ? (
+            <>
+              <InstallPrompt />
+              <StorageWarning />
+              <ErrorBoundary label={t.englishTile}>
+                <EnglishGame />
               </ErrorBoundary>
-            </div>
-            <div className="h-[58vh] min-h-[420px]">
-              <ErrorBoundary label={t.lessonVideos}>
-                <LessonsPane chapterId={chapterId} />
-              </ErrorBoundary>
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              <ChapterPicker
+                subjectId={subjectId}
+                activeChapterId={chapterId}
+                onSelect={setChapterId}
+              />
+              <InstallPrompt />
+              <StorageWarning />
+              <LowBandwidthNotice />
+              <ModelLoader />
+              <div className="h-[58vh] min-h-[420px]">
+                <ErrorBoundary label={t.tabTutor}>
+                  <ChatPane chapterId={chapterId} />
+                </ErrorBoundary>
+              </div>
+            </>
+          )}
         </main>
       ) : (
         <main>

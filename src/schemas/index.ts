@@ -134,3 +134,12 @@ export const flagResolvedPayloadSchema = z.object({
 export const bankItemPayloadSchema = reasoningItemSchema;
 
 export type SyncBundleInput = z.infer<typeof syncBundleSchema>;
+
+export const wordProgressSchema = z.object({
+  learnerId: z.string().min(1),
+  wordId: z.string().min(1),
+  box: z.number().int().min(0),
+  seen: z.number().int().nonnegative(),
+  correct: z.number().int().nonnegative(),
+  lastSeenAt: z.number().finite(),
+});

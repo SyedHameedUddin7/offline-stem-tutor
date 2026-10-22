@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from "dexie";
+import Dexie, { type EntityTable, type Table } from "dexie";
 import type {
   AppSetting,
   ChatMessage,
@@ -7,6 +7,7 @@ import type {
   ReasoningItem,
   ReferenceNote,
   SyncEvent,
+  WordProgress,
 } from "../types";
 import { BANK_VERSION, REASONING_BANK } from "../data/reasoningBank";
 import { NOTES_VERSION, REFERENCE_NOTES } from "../data/referenceNotes";
@@ -32,6 +33,7 @@ class TutorDB extends Dexie {
   learners!: EntityTable<Learner, "id">;
   appSettings!: EntityTable<AppSetting, "key">;
   syncEvents!: EntityTable<SyncEvent, "id">;
+  wordProgress!: Table<WordProgress, [string, string]>;
 
   constructor() {
     super("stem-offline-tutor");
@@ -149,6 +151,24 @@ class TutorDB extends Dexie {
       referenceNotes: "id, chapterId, kind",
       appSettings: "key",
       syncEvents: "id, deviceId, type, entityId, createdAt, exportedAt, [deviceId+seq]",
+    });
+
+    // v8: English practice progress, one row per learner per word.
+    //
+    // Keyed on the pair rather than a generated id so recording an answer is
+    // a single get-and-put with no lookup first, and a learner cannot end up
+    // with two rows disagreeing about the same word.
+    this.version(8).stores({
+      learners: "id, name, lastActiveAt",
+      messages:
+        "id, learnerId, subjectId, chapterId, timestamp, synced, [learnerId+chapterId]",
+      flaggedItems:
+        "id, learnerId, subjectId, chapterId, teacherStatus, timestamp, synced",
+      reasoningItems: "id, chapterId, source",
+      referenceNotes: "id, chapterId, kind",
+      appSettings: "key",
+      syncEvents: "id, deviceId, type, entityId, createdAt, exportedAt, [deviceId+seq]",
+      wordProgress: "[learnerId+wordId], learnerId",
     });
   }
 }

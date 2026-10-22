@@ -83,17 +83,6 @@ export interface Subject {
   chapters: Chapter[];
 }
 
-export interface LessonVideo {
-  id: string;
-  /** Videos hang off a chapter, so a teacher downloads a week's worth of
-   *  content rather than a syllabus. Downloads happen on metered links. */
-  chapterId: string;
-  title: string;
-  /** Where the source file lives when online. */
-  url: string;
-  durationLabel: string; // e.g. "4:12" — a display string, not computed
-  sizeMB: number;
-}
 
 /* ------------------------------------------------------------------ *
  * Retrieval (Mental Ability, and the teacher-authored answer bank)
@@ -377,3 +366,54 @@ export interface FacilitatorCredential {
  *  This is the single most important piece of state in the whole app —
  *  it drives the signal indicator that is the project's actual thesis. */
 export type ConnectivityState = "online" | "offline";
+
+/* ------------------------------------------------------------------ *
+ * English practice
+ * ------------------------------------------------------------------ */
+
+/**
+ * What a word looks like on screen, without downloading an image.
+ *
+ * Emoji come from the phone's own font, so they cost zero bytes; colours,
+ * shapes and counts are drawn, because an emoji for "red" or "triangle" is
+ * either missing or ambiguous on an older Android.
+ */
+export type WordPicture =
+  | { kind: "emoji"; value: string }
+  | { kind: "swatch"; color: string }
+  | { kind: "shape"; shape: "circle" | "square" | "triangle" | "rectangle" | "star" | "line" }
+  | { kind: "count"; n: number };
+
+export interface EnglishWord {
+  /** Globally unique across topics — the key progress is stored under. */
+  id: string;
+  en: string;
+  /** Shown after an answer, so a French-speaking beginner can anchor the word. */
+  fr: string;
+  picture: WordPicture;
+}
+
+export interface EnglishTopic {
+  id: string;
+  name: string;
+  nameFr: string;
+  icon: string;
+  words: EnglishWord[];
+}
+
+/**
+ * How well one learner knows one word, as a Leitner box.
+ *
+ * Box 0 is "not known yet"; each correct answer moves the word up one box and
+ * any miss sends it back to 0. The box is the whole model — no timestamps to
+ * trust, because a pod phone's clock may be wrong by months.
+ */
+export interface WordProgress {
+  learnerId: string;
+  wordId: string;
+  box: number;
+  seen: number;
+  correct: number;
+  /** Only used to order equally-known words; never to decide what is due. */
+  lastSeenAt: number;
+}

@@ -5,7 +5,6 @@
     "exclude": [
       "/assets/*",
       "/fonts/*",
-      "/videos/*",
       "/*.{png,svg,ico,webmanifest,woff2,wasm,json}"
     ]
   },

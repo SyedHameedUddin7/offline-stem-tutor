@@ -40,8 +40,6 @@ function label(check: ReadinessCheck, t: Strings): string {
       return t.readySearchModel;
     case "language-model":
       return t.readyLanguageModel;
-    case "lesson-videos":
-      return t.readyVideos;
     case "storage-space":
       return t.readyStorage;
   }

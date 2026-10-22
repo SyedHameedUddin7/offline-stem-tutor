@@ -28,16 +28,20 @@ const accentClasses: Record<Accent, { border: string; text: string; activeRing: 
 interface Props {
   activeId: SubjectId;
   onSelect: (id: SubjectId) => void;
+  /** English practice sits beside the subjects but is not one: it has no
+   *  chapters and no tutor, so it is a separate tile rather than a SubjectId. */
+  englishActive: boolean;
+  onSelectEnglish: () => void;
 }
 
-export function SubjectPicker({ activeId, onSelect }: Props) {
+export function SubjectPicker({ activeId, onSelect, englishActive, onSelectEnglish }: Props) {
   const { lang, t } = useLang();
   const subjects = localizedSubjects(lang);
 
   return (
-    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
       {subjects.map((subject) => {
-        const isActive = subject.id === activeId;
+        const isActive = !englishActive && subject.id === activeId;
         const styles = accentClasses[subject.accent];
         return (
           <button
@@ -68,6 +72,19 @@ export function SubjectPicker({ activeId, onSelect }: Props) {
           </button>
         );
       })}
+      <button
+        onClick={onSelectEnglish}
+        aria-pressed={englishActive}
+        className={`col-span-2 flex min-h-[5.5rem] flex-col rounded-card border bg-night-surface p-3.5 text-left transition-all lg:col-span-1 ${
+          accentClasses.signal.border
+        } ${englishActive ? `bg-night-raised ${accentClasses.signal.activeRing}` : ""}`}
+      >
+        <span className="mono-label">{t.englishKicker}</span>
+        <span className={`mt-1.5 font-display text-base font-semibold leading-tight ${accentClasses.signal.text}`}>
+          {t.englishTile}
+        </span>
+        <span className="mt-1 text-xs leading-snug text-paper/60">{t.englishTagline}</span>
+      </button>
     </div>
   );
 }

@@ -1,6 +1,5 @@
 import { getSubject, localizedChapter } from "../data/subjects";
 import { useLang } from "../i18n/LanguageContext";
-import { videosForChapter } from "../data/videos";
 import type { Accent, SubjectId } from "../types";
 
 const accentText: Record<Accent, string> = {
@@ -31,7 +30,7 @@ interface Props {
  * option a large target — the same reason the subject picker uses cards.
  */
 export function ChapterPicker({ subjectId, activeChapterId, onSelect }: Props) {
-  const { lang, t } = useLang();
+  const { lang } = useLang();
   const subject = getSubject(subjectId)!;
   const chapters = subject.chapters.map((c) => localizedChapter(c, lang));
   const active = chapters.find((c) => c.id === activeChapterId);
@@ -41,7 +40,6 @@ export function ChapterPicker({ subjectId, activeChapterId, onSelect }: Props) {
       <div className="flex flex-wrap gap-2">
         {chapters.map((chapter) => {
           const isActive = chapter.id === activeChapterId;
-          const hasVideo = videosForChapter(chapter.id).length > 0;
           return (
             <button
               key={chapter.id}
@@ -54,14 +52,6 @@ export function ChapterPicker({ subjectId, activeChapterId, onSelect }: Props) {
               }`}
             >
               {chapter.name}
-              {/* A quiet mark that this chapter has a downloadable lesson —
-                  useful to a teacher deciding what to pull while there's signal. */}
-              {hasVideo && (
-                <span
-                  className={`h-1 w-1 rounded-full ${isActive ? "bg-current" : "bg-muted"}`}
-                  aria-label={t.hasVideo}
-                />
-              )}
             </button>
           );
         })}

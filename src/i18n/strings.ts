@@ -25,7 +25,7 @@ export const STRINGS = {
     tabTutor: "Tutor",
     tabTeacher: "Teacher review",
     footerHint:
-      "try it: turn on airplane mode, then keep asking questions and playing downloaded videos",
+      "try it: turn on airplane mode, then keep asking questions and playing the English game",
 
     // Install
     installTitle: "install to keep your work",
@@ -106,7 +106,33 @@ export const STRINGS = {
     // Subjects / chapters
     chapters: (n: number) => `${n} chapters`,
     grounded: "grounded",
-    hasVideo: "has lesson video",
+
+    // English practice
+    englishTile: "Learn English",
+    englishKicker: "game · offline",
+    englishTagline: "Learn English words with pictures.",
+    englishTitle: "Picture match",
+    englishBlurb:
+      "Match each picture to its English word. Words you miss come back until you know them. Everything here works with no connection.",
+    englishReview: "Mixed review",
+    englishReviewBlurb: "Words from every topic you have opened. The ones you forget come first.",
+    englishLocked: "Learn half of the topic before to open this one",
+    englishWhichWord: "Which word is this?",
+    englishWhichPicture: (word: string) => `Which picture is "${word}"?`,
+    englishCorrect: "Correct!",
+    englishWrong: (word: string) => `Not quite. It is "${word}".`,
+    englishInFrench: (fr: string) => `In French: ${fr}`,
+    englishNext: "Next",
+    englishFinish: "See my score",
+    englishScore: (n: number, total: number) => `${n} out of ${total}`,
+    englishDoneGreat: "Great work! Keep going to earn more stars.",
+    englishDoneKeep: "Good try. The words you missed will come back next time.",
+    englishPlayAgain: "Play again",
+    englishBack: "All topics",
+    englishListen: "Listen",
+    englishProgress: (i: number, n: number) => `${i} / ${n}`,
+    englishKnown: (n: number, total: number) => `${n} of ${total} words known`,
+    englishStars: (n: number) => `${n} of 3 stars`,
 
     // Chat
     messages: (n: number) => `${n} messages`,
@@ -153,14 +179,6 @@ export const STRINGS = {
     noWebgpuBody:
       "Mental Ability still works — it runs on the verified answer bank, which needs no GPU. This is the common case on a shared low-end phone, not a broken install.",
 
-    // Lessons
-    lessonVideos: "Lesson videos",
-    noVideos: (chapter: string) =>
-      `No lesson videos for ${chapter} yet. Chapters with a downloadable lesson are marked with a dot in the chapter list.`,
-    availableOffline: "✓ available offline",
-    play: "play",
-    remove: "remove",
-    download: (mb: number) => `download ${mb}MB`,
 
     // Facilitator gate
     setPinTitle: "Set a facilitator PIN",
@@ -258,7 +276,6 @@ export const STRINGS = {
     readyNotes: "Chapter reference material indexed",
     readySearchModel: "Search model downloaded",
     readyLanguageModel: "On-device language model downloaded",
-    readyVideos: "Lesson videos downloaded",
     readyStorage: "Free storage",
     readyYes: "yes",
     readyNo: "no",
@@ -330,7 +347,7 @@ export const STRINGS = {
     tabTutor: "Tuteur",
     tabTeacher: "Révision enseignant",
     footerHint:
-      "essayez : activez le mode avion, puis continuez à poser des questions et à lire les vidéos téléchargées",
+      "essayez : activez le mode avion, puis continuez à poser des questions et à jouer au jeu d'anglais",
 
     installTitle: "installe pour conserver ton travail",
     installBody:
@@ -404,7 +421,32 @@ export const STRINGS = {
 
     chapters: (n: number) => `${n} chapitres`,
     grounded: "vérifié",
-    hasVideo: "contient une vidéo",
+
+    englishTile: "Apprendre l'anglais",
+    englishKicker: "jeu · hors ligne",
+    englishTagline: "Apprends des mots anglais avec des images.",
+    englishTitle: "Images et mots",
+    englishBlurb:
+      "Associe chaque image à son mot anglais. Les mots manqués reviennent jusqu'à ce que tu les saches. Tout fonctionne sans connexion.",
+    englishReview: "Révision mélangée",
+    englishReviewBlurb: "Des mots de tous les thèmes ouverts. Ceux que tu oublies viennent d'abord.",
+    englishLocked: "Apprends la moitié du thème précédent pour ouvrir celui-ci",
+    englishWhichWord: "Quel est ce mot ?",
+    englishWhichPicture: (word: string) => `Quelle image correspond à « ${word} » ?`,
+    englishCorrect: "Bravo !",
+    englishWrong: (word: string) => `Presque. C'est « ${word} ».`,
+    englishInFrench: (fr: string) => `En français : ${fr}`,
+    englishNext: "Suivant",
+    englishFinish: "Voir mon score",
+    englishScore: (n: number, total: number) => `${n} sur ${total}`,
+    englishDoneGreat: "Très bien ! Continue pour gagner plus d'étoiles.",
+    englishDoneKeep: "Bel effort. Les mots manqués reviendront la prochaine fois.",
+    englishPlayAgain: "Rejouer",
+    englishBack: "Tous les thèmes",
+    englishListen: "Écouter",
+    englishProgress: (i: number, n: number) => `${i} / ${n}`,
+    englishKnown: (n: number, total: number) => `${n} mots connus sur ${total}`,
+    englishStars: (n: number) => `${n} étoiles sur 3`,
 
     messages: (n: number) => `${n} messages`,
     noQuestionsYet: "Aucune question dans ce chapitre. Essayez-en une :",
@@ -449,13 +491,6 @@ export const STRINGS = {
     noWebgpuBody:
       "L'Aptitude fonctionne quand même — elle s'appuie sur la banque de réponses vérifiées, qui n'a pas besoin de GPU. C'est le cas courant sur un téléphone partagé d'entrée de gamme, pas une installation défaillante.",
 
-    lessonVideos: "Vidéos de cours",
-    noVideos: (chapter: string) =>
-      `Aucune vidéo pour ${chapter} pour l'instant. Les chapitres qui en ont une sont marqués d'un point dans la liste.`,
-    availableOffline: "✓ disponible hors ligne",
-    play: "lire",
-    remove: "supprimer",
-    download: (mb: number) => `télécharger ${mb} Mo`,
 
     setPinTitle: "Définir un code animateur",
     setPinBlurb:
@@ -550,7 +585,6 @@ export const STRINGS = {
     readyNotes: "Matériel de référence des chapitres indexé",
     readySearchModel: "Modèle de recherche téléchargé",
     readyLanguageModel: "Modèle de langage embarqué téléchargé",
-    readyVideos: "Vidéos de cours téléchargées",
     readyStorage: "Espace libre",
     readyYes: "oui",
     readyNo: "non",

@@ -3,7 +3,6 @@ import { SUBJECTS, localizedSubjects, resolveLocalizedChapter, systemPromptFor }
 import { CHAPTER_FR, SUBJECT_FR } from "./subjects.fr";
 import { REASONING_BANK } from "./reasoningBank";
 import { REFERENCE_NOTES } from "./referenceNotes";
-import { LESSON_VIDEOS } from "./videos";
 
 const ALL_CHAPTER_IDS = new Set(SUBJECTS.flatMap((s) => s.chapters.map((c) => c.id)));
 
@@ -105,17 +104,10 @@ describe("content references real chapters", () => {
     }
   });
 
-  it("anchors every lesson video to a real chapter", () => {
-    for (const v of LESSON_VIDEOS) {
-      expect(ALL_CHAPTER_IDS.has(v.chapterId), `${v.id} -> ${v.chapterId}`).toBe(true);
-    }
-  });
-
   it("has unique ids across all content", () => {
     for (const [label, ids] of [
       ["reasoning", REASONING_BANK.map((i) => i.id)],
       ["notes", REFERENCE_NOTES.map((n) => n.id)],
-      ["videos", LESSON_VIDEOS.map((v) => v.id)],
     ] as const) {
       expect(new Set(ids).size, `${label} has duplicate ids`).toBe(ids.length);
     }
