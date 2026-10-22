@@ -20,6 +20,9 @@ export type ProvenanceKind =
   | "teacher-verified"
   /** Came from a vetted exemplar that shipped with the app. */
   | "from-example"
+  /** A stored lesson that matched the question's words. Not an answer anyone
+   *  checked against this question — the student has to judge the fit. */
+  | "from-lesson"
   /** Model answer whose arithmetic and units survived deterministic checks. */
   | "checks-passed"
   /** Model answer that failed a deterministic check — demonstrably wrong. */
@@ -30,6 +33,11 @@ export type ProvenanceKind =
   | "unchecked"
   /** No engine could answer; the question went to a facilitator. */
   | "no-answer";
+
+/** Teacher-authored bank items are created as `teacher-<flag id>`. */
+export function isTeacherItemId(id: string | undefined): boolean {
+  return id?.startsWith("teacher-") ?? false;
+}
 
 export function provenanceOf(
   message: Pick<ChatMessage, "tier" | "citations" | "flagged" | "verification">,
@@ -42,6 +50,8 @@ export function provenanceOf(
       return "verified";
     case "answer-bank":
       return teacherSourced ? "teacher-verified" : "from-example";
+    case "curriculum":
+      return "from-lesson";
     case "webgpu-llm":
       // A failed deterministic check outranks everything: we can show this
       // answer is wrong, and that must be the headline.
@@ -73,6 +83,7 @@ export function provenanceTone(kind: ProvenanceKind): "good" | "neutral" | "caut
     case "teacher-verified":
       return "good";
     case "from-example":
+    case "from-lesson":
     case "checks-passed":
       return "neutral";
     default:

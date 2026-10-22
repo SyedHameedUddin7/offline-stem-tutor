@@ -4,9 +4,15 @@ import { generate, isLlmReady } from "./llm";
 import { solveNumberSeries } from "./solvers/numberSeries";
 import { formatNotes, retrieveNotes, type RetrievedNote } from "./reference";
 import { verifyAnswer } from "./verify";
+import { solveMaths, MATH_PROBLEM_TYPES } from "./solvers/maths";
+import { solvePhysics } from "./solvers/physics/engine";
+import type { SolverResult } from "./solvers/types";
+import { searchSubject, strongMatch, teacherMatch, type SearchDoc } from "./curriculum";
+import { sameQuestion } from "./lexical";
+import { REASONING_BANK } from "../data/reasoningBank";
 import { currentLang } from "../i18n/LanguageContext";
 import { STRINGS, type Lang } from "../i18n/strings";
-import type { Confidence, EngineTier, Grounding, RetrievedItem } from "../types";
+import type { Confidence, EngineTier, Grounding, RetrievedItem, SubjectId } from "../types";
 
 export interface TutorAnswer {
   content: string;
@@ -19,6 +25,12 @@ export interface TutorAnswer {
   /** Deterministic post-generation checks; see lib/verify. */
   verification?: "passed" | "failed" | "unverifiable";
   verificationNotes?: string[];
+  /**
+   * Whether this goes to the facilitator queue. Defaults to "low confidence
+   * or a failed check". Set explicitly where that rule is wrong: a solver
+   * asking for a missing value is not a question a teacher needs to see.
+   */
+  flag?: boolean;
 }
 
 export interface TutorRequest {
@@ -59,7 +71,62 @@ export async function askTutor({
 
   return resolved.subject.mode === "retrieval-grounded"
     ? answerGrounded(chapterId, question, lang, onToken)
-    : answerGenerative(chapterId, resolved.subject.name, question, lang, onToken);
+    : answerGenerative(chapterId, resolved.subject.id, resolved.subject.name, question, lang, onToken);
+}
+
+/* ------------------------------------------------------------------ *
+ * The no-model rungs, shared by every subject
+ * ------------------------------------------------------------------ */
+
+function solverAnswer(r: SolverResult, lang: Lang): TutorAnswer {
+  const t = STRINGS[lang];
+  const steps = r.steps.map((s, i) => (/^\d+\./.test(s) ? s : `${i + 1}. ${s}`)).join("\n");
+  return {
+    content: `${r.title}\n\n${steps}\n\n${t.tutorAnswer}: ${r.answer}\n\n${t.tutorCheckLabel}: ${r.check.detail}\n\n${t.tutorIdea}: ${r.concept}`,
+    confidence: "high",
+    tier: "solver",
+    citations: [],
+    verification: "passed",
+  };
+}
+
+/** A teacher's answer to this same question, found by words alone. */
+async function teacherAnswer(chapterId: string, question: string, lang: Lang): Promise<TutorAnswer | null> {
+  const item = await teacherMatch(chapterId, question).catch(() => null);
+  if (!item) return null;
+  const t = STRINGS[lang];
+  return {
+    content: `${t.tutorMatchedExample(item.question)}\n\n${item.answer}\n\n${t.tutorTeacherVerified}`,
+    confidence: "high",
+    tier: "answer-bank",
+    citations: [item.id],
+  };
+}
+
+function lessonAnswer(doc: SearchDoc, also: SearchDoc | undefined, lang: Lang): TutorAnswer {
+  const t = STRINGS[lang];
+  const body =
+    doc.type === "question"
+      ? `${doc.title}\n${t.tutorAnswer}: ${doc.body}`
+      : doc.type === "flashcard"
+        ? `${doc.title}: ${doc.body}`
+        : `${doc.title}\n\n${doc.body}`;
+  return {
+    content:
+      `${t.tutorFromNotes}\n\n${body}` +
+      (also ? `\n\n${t.tutorAlsoSee}: ${also.title}` : "") +
+      (lang === "fr" ? `\n\n${t.contentEnglishOnly}` : ""),
+    confidence: "medium",
+    tier: "curriculum",
+    citations: [doc.id, ...(also ? [also.id] : [])],
+    flag: false,
+  };
+}
+
+/** Problem formats the solver reads in this chapter, for "try one of these". */
+function examplesFor(chapterId: string, lang: Lang): string[] {
+  const i = lang === "fr" ? 1 : 0;
+  return MATH_PROBLEM_TYPES.filter((p) => p.chapterId === chapterId).slice(0, 2).map((p) => p.example[i]);
 }
 
 /* ------------------------------------------------------------------ *
@@ -68,6 +135,7 @@ export async function askTutor({
 
 async function answerGenerative(
   chapterId: string,
+  subjectId: SubjectId,
   subjectName: string,
   question: string,
   lang: Lang,
@@ -75,9 +143,56 @@ async function answerGenerative(
 ): Promise<TutorAnswer> {
   const t = STRINGS[lang];
 
+  // 1. An exact solver, where the question is a calculation it reads. It
+  //    outranks the model for the same reason it does in Mental Ability: it
+  //    checks its own answer against the question.
+  const outcome =
+    subjectId === "mathematics" ? solveMaths(question, lang) : subjectId === "physics" ? solvePhysics(question, lang, chapterId) : null;
+  if (outcome?.kind === "solved" && outcome.result.check.passed) return solverAnswer(outcome.result, lang);
+
+  // 2. A teacher's answer to this same question.
+  const teacher = await teacherAnswer(chapterId, question, lang);
+  if (teacher) return teacher;
+
+  // 3. A stored lesson that clearly covers the question.
+  let hits: Awaited<ReturnType<typeof searchSubject>> = [];
+  try {
+    hits = await searchSubject(subjectId, question, 5);
+  } catch (err) {
+    console.warn("Local search failed", err);
+  }
+  // Not for a calculation the solver recognised but could not finish: a
+  // lesson that shares its words ("acceleration", "car") is not an answer to
+  // it, and showing one would bury the solver's "this value is missing".
+  const strong = outcome?.kind === "invalid" ? null : strongMatch(hits, question);
+  if (strong) {
+    const also = hits.find((h) => h !== strong && h.doc.type === "lesson" && h.coverage >= 0.5)?.doc;
+    return lessonAnswer(strong.doc, also, lang);
+  }
+
+  // 4. The model, if it is on this device. Otherwise say plainly what the
+  //    device can do instead — never "load the model" as the only option.
   if (!isLlmReady()) {
+    // The solver recognised the problem but something is missing or invalid:
+    // say exactly what, and do not send it to a teacher.
+    if (outcome?.kind === "invalid") {
+      return {
+        content: `${outcome.reason}\n\n${t.tutorUseSolveTab}`,
+        confidence: "low",
+        tier: "unavailable",
+        citations: [],
+        flag: false,
+      };
+    }
+    const related = hits.filter((h) => h.coverage >= 0.3 && h.doc.type !== "teacher").slice(0, 3).map((h) => `• ${h.doc.title}`);
+    const examples = examplesFor(chapterId, lang).map((e) => `• ${e}`);
     return {
-      content: t.tutorModelNotLoaded(subjectName),
+      content: [
+        t.tutorOfflineCannot(subjectName),
+        related.length ? `${t.tutorRelated}\n${related.join("\n")}` : "",
+        examples.length ? `${t.tutorTryFormat}\n${examples.join("\n")}` : "",
+        t.tutorSentToTeacher,
+      ].filter(Boolean).join("\n\n"),
       confidence: "low",
       tier: "unavailable",
       citations: [],
@@ -183,18 +298,25 @@ async function answerGrounded(
     };
   }
 
+  // 1b. A teacher's answer to this same question — found by words alone, so
+  //     it works on a device that never downloaded the search model.
+  const teacher = await teacherAnswer(chapterId, question, lang);
+  if (teacher) return teacher;
+
   // 2. Grounding, independent of whether a model exists.
   let grounding: Grounding;
   try {
     grounding = await retrieve(chapterId, question);
   } catch (err) {
     console.error("Retrieval failed", err);
+    const exact = exactBankMatch(chapterId, question);
+    if (exact) return exemplarAnswer({ item: exact, score: 1 }, "grounded", false, [exact.id], lang, 1);
     // Include the reason. "It didn't work" is unactionable for a teacher in a
     // pod with no devtools, and it was unactionable for me too when this
     // message first appeared during testing with nothing to go on.
     const reason = err instanceof Error ? err.message : String(err);
     return {
-      content: t.tutorSearchFailed(reason),
+      content: `${t.tutorSearchFailed(reason)}\n\n${t.tutorPracticeHint}`,
       confidence: "low",
       tier: "unavailable",
       citations: [],
@@ -209,8 +331,10 @@ async function answerGrounded(
   // now say different things. Conflating them was telling students the corpus
   // had no method for their question when the corpus had not been consulted.
   if (grounding.status === "unindexed") {
+    const exact = exactBankMatch(chapterId, question);
+    if (exact) return exemplarAnswer({ item: exact, score: 1 }, "grounded", false, [exact.id], lang, 1);
     return {
-      content: t.tutorBankNotReady(0, grounding.bankSize ?? 0),
+      content: `${t.tutorBankNotReady(0, grounding.bankSize ?? 0)}\n\n${t.tutorPracticeHint}`,
       confidence: "low",
       tier: "unavailable",
       citations: [],
@@ -365,4 +489,14 @@ function exemplarAnswer(
 
 function chapterNameOf(chapterId: string, lang: Lang): string {
   return resolveLocalizedChapter(chapterId, lang)?.chapter.name ?? "";
+}
+
+/**
+ * A bundled exemplar asked in (nearly) the same words — the one Mental
+ * Ability answer that is safe to serve without semantic search. Anything
+ * looser would be the failure this subject exists to avoid: a plausible
+ * technique applied to the wrong puzzle.
+ */
+function exactBankMatch(chapterId: string, question: string) {
+  return REASONING_BANK.find((i) => i.chapterId === chapterId && sameQuestion(i.question, question, 0.85)) ?? null;
 }

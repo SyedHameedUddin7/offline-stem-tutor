@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../lib/db";
 import { askTutor } from "../lib/tutor";
 import { logFlagCreated, logLearner } from "../lib/sync";
-import { provenanceOf, provenanceTone, type ProvenanceKind } from "../lib/provenance";
+import { isTeacherItemId, provenanceOf, provenanceTone, type ProvenanceKind } from "../lib/provenance";
 import { safeParseAll } from "../lib/safeRead";
 import { isQuotaError } from "../lib/storagePersistence";
 import { chatMessageSchema } from "../schemas";
@@ -31,6 +31,7 @@ export function ChatPane({ chapterId }: Props) {
     solver: t.tierSolver,
     "webgpu-llm": t.tierLlm,
     "answer-bank": t.tierBank,
+    curriculum: t.tierCurriculum,
     unavailable: t.tierNone,
   };
 
@@ -39,6 +40,7 @@ export function ChatPane({ chapterId }: Props) {
     verified: t.provVerified,
     "teacher-verified": t.provTeacherVerified,
     "from-example": t.provFromExample,
+    "from-lesson": t.provFromLesson,
     "checks-passed": t.provChecksPassed,
     "checks-failed": t.provChecksFailed,
     "grounded-unchecked": t.provGroundedUnchecked,
@@ -165,7 +167,7 @@ export function ChatPane({ chapterId }: Props) {
       // — retrieval found nothing close enough to stand on. A failed
       // deterministic check also flags: an answer we can show is wrong
       // must reach a facilitator, not just carry a quieter label.
-      flagged: reply.confidence === "low" || reply.verification === "failed",
+      flagged: reply.flag ?? (reply.confidence === "low" || reply.verification === "failed"),
       synced: false,
     };
     await db.messages.add(tutorMsg);
@@ -291,7 +293,9 @@ export function ChatPane({ chapterId }: Props) {
                         know whether anyone checked this — not a cosine score,
                         which reads as precision the system does not have. */}
                     {(() => {
-                      const kind = provenanceOf(msg);
+                      // The top citation is the item that was served. Without
+                      // this the badge never said "Verified by a teacher".
+                      const kind = provenanceOf(msg, isTeacherItemId(msg.citations?.[0]));
                       return (
                         <span className={`text-[0.7rem] ${toneClass[provenanceTone(kind)]}`}>
                           {provenanceLabel[kind]}

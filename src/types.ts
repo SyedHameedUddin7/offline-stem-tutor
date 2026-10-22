@@ -215,6 +215,8 @@ export type EngineTier =
   | "webgpu-llm" // on-device LLM via WebLLM; requires WebGPU
   | "answer-bank" // no LLM: retrieval only, over seed + teacher-authored items.
   //                 Runs on plain WASM, so it reaches phones the rung above cannot.
+  | "curriculum" // no LLM: a stored lesson that matched the question's words.
+  //               Relevant material, not an answer anyone checked against it.
   | "unavailable";
 // A CPU/WASM language-model rung belongs between these two — llama.cpp
 // compiled to WASM would reach devices WebGPU cannot, at a few tokens per
@@ -424,4 +426,89 @@ export interface WordProgress {
   correct: number;
   /** Only used to order equally-known words; never to decide what is due. */
   lastSeenAt: number;
+}
+
+/* ------------------------------------------------------------------ *
+ * Offline curriculum: practice, flashcards, content packs
+ * ------------------------------------------------------------------ */
+
+/**
+ * Lessons are ReferenceNotes — the same 84 notes that inform the model, now
+ * shown to students directly. What follows is the rest of a chapter's
+ * offline material.
+ *
+ * `lang` is on every authored item because the honest answer to "is this in
+ * French?" is per item, not per app: the interface is bilingual, most of the
+ * curriculum text is not yet, and the UI has to say which is which.
+ */
+export type ContentLang = "en" | "fr";
+
+export interface PracticeQuestion {
+  id: string;
+  chapterId: string;
+  /**
+   * mcq      pick one of `choices`; `answer` is the correct choice's text.
+   * short    a word or phrase, compared after normalising, with `accepted`
+   *          variants. Answers too long to compare are shown for self-marking.
+   * numeric  compared as numbers, within `tolerance` (relative).
+   * expression  an algebraic answer, compared by expanding both, so
+   *          "x² + 2x - 15" and "2x + x^2 - 15" are the same answer.
+   */
+  format: "mcq" | "short" | "numeric" | "expression";
+  prompt: string;
+  choices?: string[];
+  answer: string;
+  accepted?: string[];
+  tolerance?: number;
+  unit?: string;
+  /** Why the answer is right — shown after every attempt, right or wrong. */
+  explanation: string;
+  lang: ContentLang;
+  /**
+   * authored   written for this app (not reviewed by an external educator)
+   * generated  produced by a solver with freshly computed numbers
+   * bank       a Mental Ability exemplar from the answer bank
+   * pack       imported from a teacher's content pack
+   */
+  source: "authored" | "generated" | "bank" | "pack";
+}
+
+export interface Flashcard {
+  id: string;
+  chapterId: string;
+  front: string;
+  back: string;
+  lang: ContentLang;
+}
+
+/**
+ * A curriculum pack a teacher can hand to a device as a file — the same
+ * courier model as sync bundles, with no server. Validated as a whole before
+ * anything is stored: a malformed pack is rejected, never half-imported.
+ */
+export interface ContentPack {
+  formatVersion: 1;
+  /** Stable id; re-importing the same id replaces that pack, nothing else. */
+  id: string;
+  title: string;
+  /** Free text, e.g. "syllabus-neutral, grades 8-10". Never an approval claim. */
+  curriculum: string;
+  version: number;
+  /** Who wrote it. Shown beside every item that came from it. */
+  provenance: string;
+  lessons: Array<Omit<ReferenceNote, "embedding" | "embeddingModel"> & { lang: ContentLang }>;
+  questions: PracticeQuestion[];
+  flashcards: Flashcard[];
+  importedAt?: number;
+}
+
+/** One learner's record on one practice item (or one generated problem type). */
+export interface PracticeProgress {
+  learnerId: string;
+  /** An item id, or `gen:<problemType>` for generated practice. */
+  itemId: string;
+  chapterId: string;
+  attempts: number;
+  correct: number;
+  lastAnsweredAt: number;
 }

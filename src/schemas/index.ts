@@ -28,6 +28,7 @@ export const engineTierSchema = z.enum([
   "solver",
   "webgpu-llm",
   "answer-bank",
+  "curriculum",
   "unavailable",
 ]);
 
@@ -143,4 +144,78 @@ export const wordProgressSchema = z.object({
   seen: z.number().int().nonnegative(),
   correct: z.number().int().nonnegative(),
   lastSeenAt: z.number().finite(),
+});
+
+/* ------------------------------------------------------------------ *
+ * Offline curriculum
+ *
+ * Bounded everywhere: a content pack arrives as a file from another
+ * device, so a field claiming a megabyte of text or ten thousand choices is
+ * a malformed file, not a long lesson.
+ * ------------------------------------------------------------------ */
+
+const contentLangSchema = z.enum(["en", "fr"]);
+const text = (max: number) => z.string().trim().min(1).max(max);
+
+export const practiceQuestionSchema = z
+  .object({
+    id: text(120),
+    chapterId: text(80),
+    format: z.enum(["mcq", "short", "numeric", "expression"]),
+    prompt: text(2000),
+    choices: z.array(text(400)).min(2).max(8).optional(),
+    answer: text(400),
+    accepted: z.array(text(400)).max(20).optional(),
+    tolerance: z.number().min(0).max(0.5).optional(),
+    unit: z.string().max(40).optional(),
+    explanation: text(4000),
+    lang: contentLangSchema,
+    source: z.enum(["authored", "generated", "bank", "pack"]),
+  })
+  .superRefine((q, ctx) => {
+    if (q.format === "mcq" && !q.choices?.includes(q.answer)) {
+      ctx.addIssue({ code: "custom", message: "an mcq answer must be one of its choices" });
+    }
+    if (q.format === "numeric" && !Number.isFinite(Number(q.answer))) {
+      ctx.addIssue({ code: "custom", message: "a numeric answer must be a number" });
+    }
+  });
+
+export const flashcardSchema = z.object({
+  id: text(120),
+  chapterId: text(80),
+  front: text(400),
+  back: text(2000),
+  lang: contentLangSchema,
+});
+
+export const packLessonSchema = z.object({
+  id: text(120),
+  chapterId: text(80),
+  kind: z.enum(["definition", "formula", "worked-example", "misconception"]),
+  title: text(200),
+  body: text(6000),
+  lang: contentLangSchema,
+});
+
+export const contentPackSchema = z.object({
+  formatVersion: z.literal(1),
+  id: z.string().regex(/^[a-z0-9][a-z0-9-]{1,60}$/, "pack id: lowercase letters, digits and dashes"),
+  title: text(200),
+  curriculum: text(200),
+  version: z.number().int().nonnegative(),
+  provenance: text(300),
+  lessons: z.array(packLessonSchema).max(500),
+  questions: z.array(practiceQuestionSchema).max(2000),
+  flashcards: z.array(flashcardSchema).max(2000),
+  importedAt: z.number().finite().optional(),
+});
+
+export const practiceProgressSchema = z.object({
+  learnerId: z.string().min(1),
+  itemId: z.string().min(1),
+  chapterId: z.string().min(1),
+  attempts: z.number().int().nonnegative(),
+  correct: z.number().int().nonnegative(),
+  lastAnsweredAt: z.number().finite(),
 });

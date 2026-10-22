@@ -1,5 +1,11 @@
 /**
- * Evaluation dataset, v2.
+ * Evaluation dataset, v3.
+ *
+ * v3 adds the no-model curriculum: Maths and Physics problems the offline
+ * solvers must answer (values worked by hand), inputs they must decline,
+ * conceptual questions they must not claim, and the lesson-matching policy
+ * in both directions — questions a stored lesson answers, and questions it
+ * must not pretend to.
  *
  * v2 adds cases phrased the way the model actually writes: thousands
  * separators, French decimal commas, rounded results, `m/s²`, and a final
@@ -18,7 +24,7 @@
  * than a snapshot of one model run.
  */
 
-export const DATASET_VERSION = "v2";
+export const DATASET_VERSION = "v3";
 
 export type EvalDomain =
   | "number-series"
@@ -26,7 +32,14 @@ export type EvalDomain =
   | "arithmetic-check"
   | "dimension-check"
   | "substitution-check"
-  | "out-of-domain";
+  | "out-of-domain"
+  // v3: the no-model curriculum.
+  | "math-solver"
+  | "physics-solver"
+  | "invalid-input"
+  | "not-a-calculation"
+  | "lesson-match"
+  | "no-lesson-match";
 
 export type ExpectedBehaviour =
   /** The deterministic solver should produce exactly `expected`. */
@@ -38,7 +51,13 @@ export type ExpectedBehaviour =
   /** Verification should pass on the given answer text. */
   | "verify-pass"
   /** Verification should fail on the given answer text. */
-  | "verify-fail";
+  | "verify-fail"
+  /** The solver must NOT answer: it should ask for data (invalid) or not claim the question. */
+  | "decline"
+  /** With no model, the reply should be the lesson titled `expectedTitle`. */
+  | "lesson"
+  /** With no model, no stored lesson should be presented as the answer. */
+  | "no-lesson";
 
 export interface EvalCase {
   id: string;
@@ -54,6 +73,9 @@ export interface EvalCase {
   answer?: string;
   /** Expected unit, where the case is about units. */
   unit?: string;
+  /** For `lesson`: the title of the lesson or card a teacher would pick. */
+  expectedTitle?: string;
+  lang?: "en" | "fr";
   notes?: string;
 }
 
@@ -210,4 +232,91 @@ export const EVAL_CASES: EvalCase[] = [
   { id: "sb-006", domain: "substitution-check", difficulty: "easy", behaviour: "verify-fail",
     chapterId: "math-linear-equations", question: "Solve for x: 3x + 7 = 22",
     answer: "Subtract 7 from both sides: 3x = 18. Divide by 3, so x = 6." },
+
+  /* ---------------- v3: Maths solver (values worked by hand) ---------------- */
+  ...([
+    ["ms-01", "math-linear-equations", "Solve 4x - 7 = 2x + 9", 8],
+    ["ms-02", "math-linear-equations", "Solve 5(x - 2) = 3x + 4", 7],
+    ["ms-03", "math-linear-equations", "Résous : 2x + 5 = 17", 6, "fr"],
+    ["ms-04", "math-linear-equations", "Solve x^2 - 7x + 12 = 0", 4],
+    ["ms-05", "math-linear-equations", "Solve 2x + y = 11 and x - y = 1", 4],
+    ["ms-06", "math-number-systems", "HCF of 48 and 180", 12],
+    ["ms-07", "math-number-systems", "LCM of 12 and 18", 36],
+    ["ms-08", "math-ratio-percentage", "What is 35% of 240?", 84],
+    ["ms-09", "math-ratio-percentage", "Percentage increase from 80 to 100", 25],
+    ["ms-10", "math-ratio-percentage", "Simple interest on 2000 at 5% for 4 years", 400],
+    ["ms-11", "math-ratio-percentage", "Compound interest on 1000 at 10% for 2 years", 210],
+    ["ms-12", "math-ratio-percentage", "Share 600 in the ratio 1:2", 200],
+    ["ms-13", "math-geometry-triangles", "Hypotenuse of a right triangle with legs 6 cm and 8 cm", 10],
+    ["ms-14", "math-geometry-triangles", "Two angles of a triangle are 35° and 75°. Find the third.", 70],
+    ["ms-15", "math-geometry-triangles", "Distance between (-1, 2) and (2, 6)", 5],
+    ["ms-16", "math-data-probability", "Mean of 3, 5, 7, 9, 11", 7],
+    ["ms-17", "math-data-probability", "A bag has 4 red and 6 green balls. Probability of picking a green ball?", 0.6],
+    ["ms-18", "math-mensuration", "Volume of a cube with side 4 cm", 64],
+    ["ms-19", "math-mensuration", "Area of a circle with diameter 10 cm", 78.53981633974483],
+    ["ms-20", "math-number-systems", "Simplify: (6 + 4) × 3 - 2^3", 22],
+    ["ms-21", "math-number-systems", "Calcule 3/5 + 1/10", 0.7, "fr"],
+  ] as const).map(([id, chapterId, question, expected, lang]): EvalCase => ({
+    id, domain: "math-solver", difficulty: "medium", behaviour: "solve", chapterId, question, expected, lang: lang ?? "en",
+  })),
+
+  /* ---------------- v3: Physics solver (values worked by hand, SI) ---------------- */
+  ...([
+    ["ps-01", "phys-motion", "A cyclist covers 3 km in 10 min. Find the speed.", 5],
+    ["ps-02", "phys-motion", "A car moving at 10 m/s accelerates at 2 m/s² for 5 s. Find the final velocity.", 20],
+    ["ps-03", "phys-force-laws", "What force accelerates a 1500 kg car at 2 m/s²?", 3000],
+    ["ps-04", "phys-gravitation", "Find the weight of a 2 kg bag.", 19.6],
+    ["ps-05", "phys-work-energy", "Find the kinetic energy of a 1000 kg car moving at 20 m/s.", 200000],
+    ["ps-06", "phys-electricity", "A 60 W bulb is on for 2 h. How much energy does it use?", 432000],
+    ["ps-07", "phys-electricity", "Find the current when 230 V is applied across 46 Ω.", 5],
+    ["ps-08", "phys-heat", "How much heat is needed to raise the temperature of 0.5 kg of water by 10 °C?", 21000],
+    ["ps-09", "phys-work-energy", "A box of mass 5 kg is lifted to a height of 2 m. Find its potential energy.", 98],
+    ["ps-10", "phys-electricity", "Resistors of 6 Ω and 3 Ω in parallel: find the total resistance.", 2],
+    ["ps-11", "phys-force-laws", "Une force de 20 N agit sur une masse de 4 kg. Calcule l'accélération.", 5, "fr"],
+  ] as const).map(([id, chapterId, question, expected, lang]): EvalCase => ({
+    id, domain: "physics-solver", difficulty: "medium", behaviour: "solve", chapterId, question, expected, lang: lang ?? "en",
+  })),
+
+  /* ---------------- v3: inputs the solver must decline ---------------- */
+  ...([
+    ["iv-01", "math-mensuration", "Find the volume of a cylinder", "No measurements given."],
+    ["iv-02", "phys-motion", "A car accelerates for 10 s. Find its acceleration.", "Velocities missing."],
+    ["iv-03", "math-ratio-percentage", "Simple interest on 5000 for 3 years", "Rate missing."],
+    ["iv-04", "math-geometry-triangles", "Pythagoras: the hypotenuse is 4 and one side is 5", "Impossible triangle."],
+    ["iv-05", "phys-electricity", "Find the current through a 0 Ω resistor connected to 12 V.", "Zero resistance: division by zero."],
+  ] as const).map(([id, chapterId, question, notes]): EvalCase => ({
+    id, domain: "invalid-input", difficulty: "medium", behaviour: "decline", chapterId, question, notes,
+  })),
+
+  /* ---------------- v3: conceptual questions, not calculations ---------------- */
+  ...([
+    ["nc-01", "phys-light", "Why is the sky blue?"],
+    ["nc-02", "math-number-systems", "What is a prime number?"],
+    ["nc-03", "phys-force-laws", "Explain Newton's first law"],
+    ["nc-04", "math-number-systems", "Why do we need a common denominator to add fractions?"],
+  ] as const).map(([id, chapterId, question]): EvalCase => ({
+    id, domain: "not-a-calculation", difficulty: "easy", behaviour: "decline", chapterId, question,
+  })),
+
+  /* ---------------- v3: lesson matching with no model ---------------- */
+  ...([
+    ["lm-01", "bio-digestion", "What does bile do?", "Bile"],
+    ["lm-02", "bio-respiration-circulation", "Why do arteries have thick walls?", "Why arteries have thick walls, and why muscles ache"],
+    ["lm-03", "bio-reproduction-heredity", "What is the difference between pollination and fertilisation?", "Pollination vs fertilisation"],
+    ["lm-04", "bio-health-disease", "what is a vaccine", "Vaccine"],
+    ["lm-05", "phys-light", "what is the law of reflection", "Law of reflection"],
+    ["lm-06", "math-ratio-percentage", "what is the formula for compound interest", "Compound interest"],
+    ["lm-07", "bio-photosynthesis", "Do plants respire at night?", "Do plants respire?"],
+  ] as const).map(([id, chapterId, question, expectedTitle]): EvalCase => ({
+    id, domain: "lesson-match", difficulty: "medium", behaviour: "lesson", chapterId, question, expectedTitle,
+  })),
+  ...([
+    ["nl-01", "bio-cell", "How do volcanoes erupt?"],
+    ["nl-02", "bio-health-disease", "What is the capital of Mali?"],
+    ["nl-03", "phys-light", "Explain quantum entanglement"],
+    ["nl-04", "math-number-systems", "Prove Fermat's last theorem"],
+    ["nl-05", "bio-cell", "What is DNA replication?"],
+  ] as const).map(([id, chapterId, question]): EvalCase => ({
+    id, domain: "no-lesson-match", difficulty: "medium", behaviour: "no-lesson", chapterId, question,
+  })),
 ];

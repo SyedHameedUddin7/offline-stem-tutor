@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { SubjectPicker } from "./components/SubjectPicker";
 import { ChapterPicker } from "./components/ChapterPicker";
-import { ChatPane } from "./components/ChatPane";
 import { TeacherPanel } from "./components/TeacherPanel";
 import { ConnectivityIndicator } from "./components/ConnectivityIndicator";
 import { EngineStatus } from "./components/EngineStatus";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import { ModelLoader } from "./components/ModelLoader";
 import { LanguageToggle } from "./components/LanguageToggle";
 import { useLang } from "./i18n/LanguageContext";
 import { useLearner } from "./learner/LearnerContext";
@@ -19,6 +17,7 @@ import { InstallPrompt } from "./components/InstallPrompt";
 import { LearnerBadge } from "./components/LearnerBadge";
 import { FacilitatorGate } from "./components/FacilitatorGate";
 import { EnglishGame } from "./components/EnglishGame";
+import { ChapterWorkspace } from "./components/ChapterWorkspace";
 import { firstChapterOf } from "./data/subjects";
 import { seedReasoningBank, seedReferenceNotes } from "./lib/db";
 import type { SubjectId } from "./types";
@@ -159,12 +158,7 @@ export default function App() {
               <InstallPrompt />
               <StorageWarning />
               <LowBandwidthNotice />
-              <ModelLoader />
-              <div className="h-[58vh] min-h-[420px]">
-                <ErrorBoundary label={t.tabTutor}>
-                  <ChatPane chapterId={chapterId} />
-                </ErrorBoundary>
-              </div>
+              <ChapterWorkspace subjectId={subjectId} chapterId={chapterId} />
             </>
           )}
         </main>

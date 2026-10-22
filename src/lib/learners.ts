@@ -62,12 +62,17 @@ export async function touchLearner(id: string): Promise<void> {
  * because those are no longer about one student.
  */
 export async function deleteLearner(id: string): Promise<void> {
-  await db.transaction("rw", [db.learners, db.messages, db.flaggedItems, db.wordProgress], async () => {
+  await db.transaction(
+    "rw",
+    [db.learners, db.messages, db.flaggedItems, db.wordProgress, db.practiceProgress],
+    async () => {
     await db.messages.where("learnerId").equals(id).delete();
     await db.flaggedItems.where("learnerId").equals(id).delete();
     await db.wordProgress.where("learnerId").equals(id).delete();
+    await db.practiceProgress.where("learnerId").equals(id).delete();
     await db.learners.delete(id);
-  });
+    }
+  );
   if (getActiveLearnerId() === id) clearActiveLearner();
 }
 

@@ -8,6 +8,8 @@ import type {
   ReferenceNote,
   SyncEvent,
   WordProgress,
+  ContentPack,
+  PracticeProgress,
 } from "../types";
 import { BANK_VERSION, REASONING_BANK } from "../data/reasoningBank";
 import { NOTES_VERSION, REFERENCE_NOTES } from "../data/referenceNotes";
@@ -34,6 +36,8 @@ class TutorDB extends Dexie {
   appSettings!: EntityTable<AppSetting, "key">;
   syncEvents!: EntityTable<SyncEvent, "id">;
   wordProgress!: Table<WordProgress, [string, string, string]>;
+  practiceProgress!: Table<PracticeProgress, [string, string]>;
+  contentPacks!: EntityTable<ContentPack, "id">;
 
   constructor() {
     super("stem-offline-tutor");
@@ -169,6 +173,25 @@ class TutorDB extends Dexie {
       appSettings: "key",
       syncEvents: "id, deviceId, type, entityId, createdAt, exportedAt, [deviceId+seq]",
       wordProgress: "[learnerId+mode+wordId], learnerId",
+    });
+
+    // v9: offline curriculum. Practice results per learner per item, and
+    // content packs a teacher imported from a file. Packs are stored whole —
+    // one row per pack — because they are validated and replaced whole: a
+    // pack is never half-present.
+    this.version(9).stores({
+      learners: "id, name, lastActiveAt",
+      messages:
+        "id, learnerId, subjectId, chapterId, timestamp, synced, [learnerId+chapterId]",
+      flaggedItems:
+        "id, learnerId, subjectId, chapterId, teacherStatus, timestamp, synced",
+      reasoningItems: "id, chapterId, source",
+      referenceNotes: "id, chapterId, kind",
+      appSettings: "key",
+      syncEvents: "id, deviceId, type, entityId, createdAt, exportedAt, [deviceId+seq]",
+      wordProgress: "[learnerId+mode+wordId], learnerId",
+      practiceProgress: "[learnerId+itemId], learnerId, chapterId",
+      contentPacks: "id",
     });
   }
 }

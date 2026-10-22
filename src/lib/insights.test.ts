@@ -81,6 +81,7 @@ describe("getPodSummary", () => {
       solver: 0,
       "webgpu-llm": 0,
       "answer-bank": 0,
+      curriculum: 0,
       unavailable: 0,
     });
   });

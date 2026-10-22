@@ -6,6 +6,7 @@ import { useLang } from "../i18n/LanguageContext";
 import { promoteCorrectionToBank } from "../lib/retrieval";
 import { logBankItem, logFlagResolved } from "../lib/sync";
 import { SyncPanel } from "./SyncPanel";
+import { ContentPacksPanel } from "./ContentPacksPanel";
 import { safeParseAll } from "../lib/safeRead";
 import { flaggedItemSchema } from "../schemas";
 import { FacilitatorDashboard } from "./FacilitatorDashboard";
@@ -90,6 +91,8 @@ export function TeacherPanel() {
       <OfflineReadiness />
 
       <SyncPanel />
+
+      <ContentPacksPanel />
 
       <Diagnostics />
 
