@@ -16,7 +16,7 @@ An AI STEM tutor for learning pods in Mali that works with **no network, no serv
 | **2. Local search** | Semantic search over the answer bank, both languages | **~150 MB** once (128 MB model + 21 MB WASM) | plain WASM, no GPU |
 | **3. On-device AI** | Language model for Maths, Physics, Biology | **~1.6 GB** (or 880 MB light) once | WebGPU |
 
-Levels 2 and 3 are opt-in, never automatic, and show size and estimated time before the tap. No model weights are in the repo or the build; they come from the MLC / Hugging Face CDNs and are cached in the browser.
+Levels 2 and 3 are opt-in, never automatic, and show size and estimated time before the tap. An interrupted download resumes on retry, is labelled *partly downloaded* (never "already downloaded"), and any model, complete or partial, can be removed from the device without touching learner data. No model weights are in the repo or the build; they come from the MLC / Hugging Face CDNs and are cached in the browser.
 
 ## How questions get answered
 
@@ -30,7 +30,7 @@ Levels 2 and 3 are opt-in, never automatic, and show size and estimated time bef
 - **The top rung is not the LLM.** For a number series, arithmetic beats a 1.5B model, and only the solver verifies its own output.
 - **Tier 3 runs where tier 2 cannot.** On a low-end Android with no WebGPU, the answer bank *is* the tutor.
 - **Mental Ability is grounded; STEM is not.** Asked `2, 4, 6, 8, ?` the model retrieved a Fibonacci exemplar (similarity 0.67) and answered 20. So `lib/retrieval.ts` **authorises**: no match, no answer. For STEM, `lib/reference.ts` **informs**: 84 teacher-written notes (definitions, formulas, worked examples, misconceptions) are injected when relevant but never block an answer.
-- **The model's work is checked.** Arithmetic (`3 x 4 = 14`), dimensional analysis (*"acceleration is 4 N"*) and substitution (a wrong `x`) are verified deterministically. A failure drops confidence, auto-flags the answer and labels it `⚠ A check failed`. Passing earns *"checked · reasoning not verified"*, never "correct". No second model call: the model that made the error is not its judge.
+- **The model's work is checked.** Arithmetic (`3 x 4 = 14`), dimensional analysis (*"acceleration is 4 N"*) and substitution (a wrong `x`) are verified deterministically, tolerating how models actually write (`1,250`, French `2,5`, rounded `3.14`, `m/s²`, a final `x = 5.` in prose). A failure drops confidence, auto-flags the answer and labels it `⚠ A check failed`. Passing earns *"checked · reasoning not verified"*, never "correct". No second model call: the model that made the error is not its judge.
 - **Students read provenance, not scores:** `Verified — checked against your question` (solver), `Verified by a teacher`, `From a verified example`, `Used the chapter material · not checked by a person`, `AI answer · not checked by a person`, `No answer — sent to your teacher`. Raw tier, score and citations sit behind a `details` toggle.
 
 ## English game
@@ -53,7 +53,8 @@ For the day there is no signal and a student has already used everything downloa
 - **Dashboard:** reports answer provenance and *unverified coverage*, never an invented mastery metric. Labelled "this device only".
 - **Pod sync without a network:** an append-only event log exported as a file. Merge is idempotent (`deviceId:seq` ids), convergent (a correction outranks an approval, then clock, then device-id tiebreak) and never deletes local work. Clocks are not trusted; vectors never travel (re-embedded on arrival).
 - **Offline readiness:** eight checks measured against real storage, split required/optional, with fixes inline (`Index now`, `Ask browser to keep data`). Storage persistence is requested before data exists and warned about if refused; in-app browsers are told to open in a real browser and install.
-- **Robust storage:** Zod validates data crossing a boundary (sync bundles, old IndexedDB rows, localStorage). One bad row never takes down a query: it is quarantined, not deleted.
+- **Updates never interrupt:** a new deploy waits behind an `update ready — tap to reload` badge (or until every tab is closed) instead of reloading mid-answer, mid-game or mid-download.
+- **Robust storage:** a full device gets a plain "out of storage" message, not a raw browser error. Zod validates data crossing a boundary (sync bundles, old IndexedDB rows, localStorage). One bad row never takes down a query: it is quarantined, not deleted.
 - **Diagnostics:** a copyable block (browser, install/SW state, storage, WebGPU/WASM, model states, build) with no learner data.
 
 ## What works offline
@@ -73,13 +74,13 @@ For the day there is no signal and a student has already used everything downloa
 ## Tests and evaluation
 
 ```bash
-npm test     # 232 tests, ~1s, deterministic stand-in embedder, no download
-npm run eval # 45 versioned cases, all checkable without a language model
+npm test     # 254 tests, ~1s, deterministic stand-in embedder, no download
+npm run eval # 52 cases (v2), all checkable without a language model
 ```
 
-Tests cover the solver (incl. the `2,4,6,8` regression), retrieval bands and domain gate, embedding-cache invalidation, the flywheel, learner isolation, PIN lockout, sync idempotency and convergence, migrations, corrupt-record recovery, the verifiers, and the English game's scheduling, scrambles, unlocks and per-mode storage.
+Tests cover the solver (incl. the `2,4,6,8` regression), retrieval bands and domain gate, embedding-cache invalidation, the flywheel, learner isolation, PIN lockout, sync idempotency and convergence, migrations, corrupt-record recovery, the verifiers, model download state and removal, search-model retry, and the English game's scheduling, scrambles, unlocks and per-mode storage.
 
-Eval: 100% on solver agreement, correct refusals, contradiction and unit checks (`npm run eval` skips 14 retrieval cases that need the real embedder; Vitest covers all 45). It measures the deterministic layers, **not** LLM answer quality. Its first run caught a real bug: `2 x 36 = 36` read out of `0.5 x 2 x 36 = 36`.
+Eval (`npm run eval`): **38/38** evaluated cases pass, 14 retrieval cases skipped because they need the real embedder; Vitest runs all 52 with a stand-in embedder, which tests retrieval *policy*, not the real model. Each metric prints its case count (offline, the refusal rate rests on 4 solver refusals). It measures the deterministic layers, **not** LLM answer quality. It has caught real bugs: `2 x 36 = 36` read out of `0.5 x 2 x 36 = 36`, and in v2, false alarms on `1,250`, `2,5`, `3.14` and `m/s²` plus a substitution check that never ran on prose answers (the old checkers score 33/38 on v2).
 
 ## Run it
 
@@ -89,11 +90,13 @@ npm run dev                                 # development (no service worker)
 npm run build && npx vite preview --port 4317 # required to test offline
 ```
 
-After a rebuild, unregister the service worker (DevTools → Application) and reload.
+After a rebuild, tap `update ready`, or unregister the service worker (DevTools → Application) and reload.
 
 **Stack:** React · TypeScript · Vite · WebLLM (Qwen2.5-1.5B / Llama-3.2-1B) · transformers.js · Dexie · Cache API · Tailwind · vite-plugin-pwa · Vitest. The inference runtimes (6 MB WebLLM, 876 KB transformers.js, 21 MB ONNX) are excluded from precache and cached only once used.
 
 ## Verify by hand
+
+Full device checklist and demo order: [`docs/MANUAL_TESTS.md`](docs/MANUAL_TESTS.md). Summary:
 
 Online for phases 1–3, offline from 4. Phases 2 and 3 are independent and optional.
 
