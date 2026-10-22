@@ -1,7 +1,6 @@
 import { db } from "./db";
 import { EMBEDDING_MODEL_ID } from "./embeddings";
 import { MODELS, isModelCached } from "./llm";
-import { LESSON_VIDEOS } from "../data/videos";
 import { REASONING_BANK } from "../data/reasoningBank";
 import { REFERENCE_NOTES } from "../data/referenceNotes";
 
@@ -28,7 +27,6 @@ export interface ReadinessCheck {
     | "reference-notes"
     | "search-model"
     | "language-model"
-    | "lesson-videos"
     | "storage-space";
   level: ReadinessLevel;
   /**
@@ -173,22 +171,6 @@ async function checkLanguageModel(): Promise<ReadinessCheck> {
   };
 }
 
-async function checkVideos(): Promise<ReadinessCheck> {
-  const cache = await cacheMatching("lesson-videos");
-  if (!cache) {
-    return { id: "lesson-videos", level: "missing", required: false, have: 0, need: LESSON_VIDEOS.length };
-  }
-  const keys = await cache.keys();
-  const have = LESSON_VIDEOS.filter((v) => keys.some((k) => k.url.endsWith(v.url))).length;
-  return {
-    id: "lesson-videos",
-    level: have === 0 ? "missing" : have >= LESSON_VIDEOS.length ? "ready" : "partial",
-    required: false,
-    have,
-    need: LESSON_VIDEOS.length,
-  };
-}
-
 async function checkStorageSpace(): Promise<ReadinessCheck> {
   try {
     const estimate = await navigator.storage?.estimate?.();
@@ -215,7 +197,6 @@ export async function getReadinessReport(): Promise<ReadinessReport> {
     checkSearchModel(),
     checkIndexed("reference-notes", db.referenceNotes, REFERENCE_NOTES.length),
     checkLanguageModel(),
-    checkVideos(),
     checkPersistentStorage(),
     checkStorageSpace(),
   ]);
